@@ -54,7 +54,7 @@ tmp = options.inputFile.split("/")
 outFile = tmp[len(tmp) - 1].replace(".root", "_dig.root")
 
 # -----Create geometry----------------------------------------------
-snd_geo = SndlhcGeo.GeoInterface(options.geoFile)
+# snd_geo = SndlhcGeo.GeoInterface(options.geoFile)
 
 # if needed to read the etector geometry
 # lsOfGlobals  = ROOT.gROOT.GetListOfGlobals()
@@ -62,7 +62,7 @@ snd_geo = SndlhcGeo.GeoInterface(options.geoFile)
 
 run = ROOT.FairRunAna()
 ioman = ROOT.FairRootManager.Instance()
-ioman.RegisterInputObject("DriftTube", snd_geo.modules["DriftTube"])
+# ioman.RegisterInputObject("DriftTube", snd_geo.modules["DriftTube"])
 # Set input
 fileSource = ROOT.FairFileSource(options.inputFile)
 run.SetSource(fileSource)
@@ -72,7 +72,7 @@ run.SetSink(outFile_sink)
 
 # Set number of events to process
 inRootFile = ROOT.TFile.Open(options.inputFile)
-inTree = inRootFile.Get("XX")  # FIXME input tree name
+inTree = inRootFile.Get("data")  # FIXME input tree name
 nEventsInFile = inTree.GetEntries()
 nEvents = min(nEventsInFile, options.nEvents)
 

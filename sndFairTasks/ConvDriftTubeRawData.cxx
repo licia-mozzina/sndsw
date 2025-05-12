@@ -37,17 +37,18 @@ InitStatus ConvDriftTubeRawData::Init()
 
    // Input raw data file is read from the FairRootManager
    // This allows to have it in custom format, e.g. have arbitary names of TTrees
-   TFile *f0 = dynamic_cast<TFile *>(ioman->GetObject("XXX")); // FIXME name of the input TTree
-   fEventTree = (TTree *)f0->Get("event");
+   // TFile *f0 = dynamic_cast<TFile *>(ioman->GetObject("data")); // FIXME name of the input TTree
+   TTree *f0 = dynamic_cast<TTree *>(ioman->GetObject("data")); // FIXME name of the input TTree
+   fEventTree = (TTree *)f0->Get("evt_number");
 
-   // Register the output
-   fDigiDriftTube = new TClonesArray("DriftTubeHit");
-   ioman->Register("Digi_DriftTubeHits", "DigiDriftTubeHit_det", fDigiDriftTube, kTRUE);
+   // // Register the output
+   // fDigiDriftTube = new TClonesArray("DriftTubeHit");
+   // ioman->Register("Digi_DriftTubeHits", "DigiDriftTubeHit_det", fDigiDriftTube, kTRUE);
 
-   // Get the FairLogger
-   FairLogger *logger = FairLogger::GetLogger();
+   // // Get the FairLogger
+   // FairLogger *logger = FairLogger::GetLogger();
 
-   eventNumber = fnStart;
+   // eventNumber = fnStart;
 
    return kSUCCESS;
 }
@@ -55,13 +56,13 @@ InitStatus ConvDriftTubeRawData::Init()
 void ConvDriftTubeRawData::Exec(Option_t * /*opt*/)
 {
 
-   fDigiDriftTube->Clear("C"); //
+   // fDigiDriftTube->Clear("C"); //
 
-   // Delete pointer map elements
-   for (auto it : digiDTStore) {
-      delete it.second;
-   }
-   digiDTStore.clear();
+   // // Delete pointer map elements
+   // for (auto it : digiDTStore) {
+   //    delete it.second;
+   // }
+   // digiDTStore.clear();
 
    // run the conversion
    Process();
@@ -70,30 +71,32 @@ void ConvDriftTubeRawData::Exec(Option_t * /*opt*/)
 void ConvDriftTubeRawData::Process()
 {
 
-   int indexDriftTube{}; // index of DT hits
-   int detID;
-   fEventTree->GetEvent(eventNumber);
-   // Loop over hits per event!
-   for (int n = 0; n < fEventTree->GetLeaf("nHits")->GetValue(); n++) { // FIXME - this is simply an example
+   // int indexDriftTube{}; // index of DT hits
+   // int detID;
+   // fEventTree->GetEvent(eventNumber);
+   // // Loop over hits per event!
+   // for (int n = 0; n < fEventTree->GetLeaf("nHits")->GetValue(); n++) { // FIXME - this is simply an example
 
-      // FIXME add conversion below
+   //    // FIXME add conversion below
 
-      // store the hits internally per event
-      if (digiDTStore.count(detID) == 0) {
-         // make the hit via the hit constructor
-         // e.g. digiDTStore[detID] = new DriftTubeHit(detID,xxx);
-      }
-      // would be nice to have a link btw raw hit and converted one - below is example
-      // from the SciFi where we use the DAQ RO params
-      // digiDTStore[detID]->SetDaqID(sipm_number,n, board_id, tofpet_id, tofpet_channel);
-   } // end loop over hits in the event
+   //    // store the hits internally per event
+   //    if (digiDTStore.count(detID) == 0) {
+   //       // make the hit via the hit constructor
+   //       // e.g. digiDTStore[detID] = new DriftTubeHit(detID,xxx);
+   //    }
+   //    // would be nice to have a link btw raw hit and converted one - below is example
+   //    // from the SciFi where we use the DAQ RO params
+   //    // digiDTStore[detID]->SetDaqID(sipm_number,n, board_id, tofpet_id, tofpet_channel);
+   // } // end loop over hits in the event
 
-   // write the hits to the output
-   for (auto it_detID : digiDTStore) {
-      (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
-      indexDriftTube += 1;
-   }
-   LOG(INFO) << fnStart + 1 << " events processed out of " << fEventTree->GetEntries() << " number of events in file.";
+   // // write the hits to the output
+   // for (auto it_detID : digiDTStore) {
+   //    (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
+   //    indexDriftTube += 1;
+   // }
+   // LOG(INFO) << fnStart + 1 << " events processed out of " << fEventTree->GetEntries() << " number of events in file.";
+
+   std::cout << "End of Process()" << std::endl;
 }
 
 void ConvDriftTubeRawData::UpdateInput(int NewStart)
