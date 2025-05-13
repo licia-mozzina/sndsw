@@ -16,10 +16,11 @@
 #include "FairRootManager.h"      // for FairRootManager
 #include "ConvDriftTubeRawData.h" // for Conversion
 #include "DriftTube.h"            // for Drift Tube detector
+
 // FIXME cleanup headers
 
 ConvDriftTubeRawData::ConvDriftTubeRawData()
-   : FairTask("ConvDriftTubeRawData"), fEventTree(nullptr), fDigiDriftTube(nullptr)
+   : FairTask("ConvDriftTubeRawData"), fSNDTree(nullptr), fMiniDTTree(nullptr), fDigiDriftTube(nullptr)
 {
 }
 
@@ -37,18 +38,28 @@ InitStatus ConvDriftTubeRawData::Init()
 
    // Input raw data file is read from the FairRootManager
    // This allows to have it in custom format, e.g. have arbitary names of TTrees
-   // TFile *f0 = dynamic_cast<TFile *>(ioman->GetObject("data")); // FIXME name of the input TTree
-   TTree *f0 = dynamic_cast<TTree *>(ioman->GetObject("data")); // FIXME name of the input TTree
-   fEventTree = (TTree *)f0->Get("evt_number");
+   
+   // // raw SND 
+   // TFile *f0 = dynamic_cast<TFile *>(ioman->GetObject("data")); 
+   // fSNDTree = (TTree *)f0->Get("data");
+   // fSNDTree->GetBranch("evt_timestamp");
 
-   // // Register the output
-   // fDigiDriftTube = new TClonesArray("DriftTubeHit");
-   // ioman->Register("Digi_DriftTubeHits", "DigiDriftTubeHit_det", fDigiDriftTube, kTRUE);
+   // converted SND 
+   TFile *f0 = dynamic_cast<TFile *>(ioman->GetObject("rawConv")); 
+   fSNDTree = (TTree *)f0->Get("rawConv");
+   // fSNDTree->GetBranch("EventHeader.fEventTime");
 
-   // // Get the FairLogger
-   // FairLogger *logger = FairLogger::GetLogger();
+   auto fMiniDT = static_cast<TFile*>(TFile::Open("/afs/cern.ch/user/g/guiducci/public/snd/mdt_tree_norb100_novl50_run_010743.root"));
+   fMiniDTTree = static_cast<TTree*>(fMiniDT->Get("minidt_hits"));
 
-   // eventNumber = fnStart;
+   // Register the output
+   fDigiDriftTube = new TClonesArray("DriftTubeHit");
+   ioman->Register("Digi_DriftTubeHits", "DigiDriftTubeHit_det", fDigiDriftTube, kTRUE);
+
+   // Get the FairLogger
+   FairLogger *logger = FairLogger::GetLogger();
+
+   eventNumber = fnStart;
 
    return kSUCCESS;
 }
@@ -56,26 +67,28 @@ InitStatus ConvDriftTubeRawData::Init()
 void ConvDriftTubeRawData::Exec(Option_t * /*opt*/)
 {
 
-   // fDigiDriftTube->Clear("C"); //
+   fDigiDriftTube->Clear("C"); //
 
-   // // Delete pointer map elements
-   // for (auto it : digiDTStore) {
-   //    delete it.second;
-   // }
-   // digiDTStore.clear();
+   // Delete pointer map elements
+   for (auto it : digiDTStore) {
+      delete it.second;
+   }
+   digiDTStore.clear();
 
    // run the conversion
    Process();
+   eventNumber++;
 }
 
 void ConvDriftTubeRawData::Process()
 {
-
    // int indexDriftTube{}; // index of DT hits
    // int detID;
-   // fEventTree->GetEvent(eventNumber);
+   fSNDTree->GetEvent(eventNumber);
+   // auto eventTimestamp = fSNDTree->GetEvent(eventNumber)->Get("EventHeader.fEventTime");
+
    // // Loop over hits per event!
-   // for (int n = 0; n < fEventTree->GetLeaf("nHits")->GetValue(); n++) { // FIXME - this is simply an example
+   // for (int n = 0; n < fSNDTree->GetLeaf("nHits")->GetValue(); n++) { // FIXME - this is simply an example
 
    //    // FIXME add conversion below
 
@@ -93,14 +106,14 @@ void ConvDriftTubeRawData::Process()
    // for (auto it_detID : digiDTStore) {
    //    (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
    //    indexDriftTube += 1;
-   // }
-   // LOG(INFO) << fnStart + 1 << " events processed out of " << fEventTree->GetEntries() << " number of events in file.";
-
-   std::cout << "End of Process()" << std::endl;
+   // }ù
+   LOG(INFO) << fnStart + 1 << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
+   UpdateInput(eventNumber);
 }
 
 void ConvDriftTubeRawData::UpdateInput(int NewStart)
 {
-   fEventTree->Refresh();
+   fSNDTree->Refresh();
+   std::cout << eventNumber << " " << NewStart << std::endl;
    eventNumber = NewStart;
 }

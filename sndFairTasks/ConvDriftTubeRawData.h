@@ -39,9 +39,12 @@ private:
    DriftTube *DriftTubeDet;
 
    // Input
-   TTree *fEventTree;
+   TTree *fSNDTree;
+   TTree *fMiniDTTree;
    int frunNumber, eventNumber;
-   int fnStart, fnEvents;
+   // int fnStart, fnEvents;
+   int fnStart = 0;
+   int fnEvents;
    double runStartUTC;
    // Output
    TFile *fOut;

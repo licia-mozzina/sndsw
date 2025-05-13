@@ -72,11 +72,25 @@ run.SetSink(outFile_sink)
 
 # Set number of events to process
 inRootFile = ROOT.TFile.Open(options.inputFile)
-inTree = inRootFile.Get("data")  # FIXME input tree name
+# # raw SND
+# inTree = inRootFile.Get("data")  # FIXME input tree name
+# converted SND
+inTree = inRootFile.Get("rawConv")  # FIXME input tree name
 nEventsInFile = inTree.GetEntries()
 nEvents = min(nEventsInFile, options.nEvents)
 
 rtdb = run.GetRuntimeDb()
+
+# # raw SND
+# ioman.RegisterInputObject("data", inRootFile)
+# converted SND
+ioman.RegisterInputObject("rawConv", inRootFile)
+
+run.SetEventHeaderPersistence(False)
+xrdb = ROOT.FairRuntimeDb.instance()
+xrdb.getContainer("FairBaseParSet").setStatic()
+xrdb.getContainer("FairGeoParSet").setStatic()
+
 ConvDriftTubeTask = ROOT.ConvDriftTubeRawData()
 run.AddTask(ConvDriftTubeTask)
 run.Init()
