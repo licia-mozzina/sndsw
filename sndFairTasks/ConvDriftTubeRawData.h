@@ -29,6 +29,8 @@ public:
    /** Update input raw-data file and first-to-process event **/
    void UpdateInput(int n);
 
+   void PrintMatchedEntries();
+
 private:
    /** Processing of raw data **/
    void Process();
@@ -41,7 +43,9 @@ private:
    // Input
    TTree *fSNDTree;
    TTree *fMiniDTTree;
-   int frunNumber, eventNumber;
+   int frunNumber, eventNumber; 
+   long MiniDTeventNumber;
+   int MatchedEntries;
    // int fnStart, fnEvents;
    int fnStart = 0;
    int fnEvents;

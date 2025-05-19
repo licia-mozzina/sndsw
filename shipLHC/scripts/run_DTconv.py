@@ -95,6 +95,7 @@ ConvDriftTubeTask = ROOT.ConvDriftTubeRawData()
 run.AddTask(ConvDriftTubeTask)
 run.Init()
 run.Run(firstEvent, nEvents)
+ConvDriftTubeTask.PrintMatchedEntries()
 
 timer.Stop()
 rtime = timer.RealTime()
