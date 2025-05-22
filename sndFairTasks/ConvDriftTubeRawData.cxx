@@ -54,12 +54,9 @@ InitStatus ConvDriftTubeRawData::Init()
    fSNDTree = (TTree *)f0->Get("rawConv");
    // fSNDTree->GetBranch("EventHeader.fEventTime");
 
-   // auto fMiniDT =
-   // static_cast<TFile*>(TFile::Open("/afs/cern.ch/user/g/guiducci/public/snd/mdt_tree_norb100_novl50_run_010743.root"));
    auto fMiniDT = static_cast<TFile *>(
-      TFile::Open("/eos/user/g/guiducci/temp-analysis/results_run_010988/mdt_tree_Norb10_Novl50_run_010988.root"));
-   // fMiniDTTree = static_cast<TTree *>(fMiniDT->Get("minidt_hits"));
-   fMiniDTTree = static_cast<TTree *>(fMiniDT->Get("minidt"));
+      TFile::Open("/eos/user/g/guiducci/temp-analysis/trees_minidt_run_011049/minidt_run_011049_hits.root"));
+   fMiniDTTree = static_cast<TTree *>(fMiniDT->Get("minidt_hits"));
 
    // Register the output
    fDigiDriftTube = new TClonesArray("DriftTubeHit");
@@ -98,76 +95,65 @@ void ConvDriftTubeRawData::Process()
 
    TTreeReader MiniDTReader(fMiniDTTree);
 
-   TTreeReaderValue<int> n_hits(MiniDTReader, "n_hits");
-   // TTreeReaderArray<int> hit_orbit(MiniDTReader, "hit_orbit");
-   TTreeReaderArray<long long> hit_orbit(MiniDTReader, "hit_orbit");
-   // TTreeReaderArray<int> hit_bx(MiniDTReader, "hit_bx");
-   TTreeReaderArray<int> hit_tdc(MiniDTReader, "hit_tdc");
-   TTreeReaderArray<double> hit_timestamp(MiniDTReader, "hit_timestamp");
-   TTreeReaderArray<int> hit_chamber(MiniDTReader, "hit_chamber");
-   TTreeReaderArray<int> hit_layer(MiniDTReader, "hit_layer");
-   TTreeReaderArray<int> hit_wire(MiniDTReader, "hit_wire");
+   TTreeReaderValue<long long> hit_orbit(MiniDTReader, "hit_orbit");
+   // TTreeReaderValue<int> hit_bx(MiniDTReader, "hit_bx");
+   TTreeReaderValue<int> hit_tdc(MiniDTReader, "hit_tdc");
+   TTreeReaderValue<double> hit_timestamp(MiniDTReader, "hit_timestamp");
+   TTreeReaderValue<int> hit_chamber(MiniDTReader, "hit_chamber");
+   TTreeReaderValue<int> hit_layer(MiniDTReader, "hit_layer");
+   TTreeReaderValue<int> hit_wire(MiniDTReader, "hit_wire");
    // TTreeReaderValue<int> n_tpgs(MiniDTReader, "n_tpgs");
-   // TTreeReaderArray<int> tpg_t0(MiniDTReader, "tpg_t0");
-   // TTreeReaderArray<int> tpg_position(MiniDTReader, "tpg_position");
-   // TTreeReaderArray<int> tpg_slope(MiniDTReader, "tpg_slope");
-   // TTreeReaderArray<int> tpg_chi2(MiniDTReader, "tpg_chi2");
-   // TTreeReaderArray<int> tpg_hit_l1_time(MiniDTReader, "tpg_hit_l1_time");
-   // TTreeReaderArray<int> tpg_hit_l1_lat(MiniDTReader, "tpg_hit_l1_lat");
-   // TTreeReaderArray<int> tpg_hit_l1_wire(MiniDTReader, "tpg_hit_l1_wire"); // layer is inferred form the hit order in
-   // the tpg index[0, 4] --> layer[0, 4] TTreeReaderArray<int> tpg_hit_l1_valid(MiniDTReader, "tpg_hit_l1_valid");
-   // TTreeReaderArray<int> tpg_hit_l2_time(MiniDTReader, "tpg_hit_l2_time");
-   // TTreeReaderArray<int> tpg_hit_l2_lat(MiniDTReader, "tpg_hit_l2_lat");
-   // TTreeReaderArray<int> tpg_hit_l2_wire(MiniDTReader, "tpg_hit_l2_wire");
-   // TTreeReaderArray<int> tpg_hit_l2_valid(MiniDTReader, "tpg_hit_l2_valid");
-   // TTreeReaderArray<int> tpg_hit_l3_time(MiniDTReader, "tpg_hit_l3_time");
-   // TTreeReaderArray<int> tpg_hit_l3_lat(MiniDTReader, "tpg_hit_l3_lat");
-   // TTreeReaderArray<int> tpg_hit_l3_wire(MiniDTReader, "tpg_hit_l3_wire");
-   // TTreeReaderArray<int> tpg_hit_l3_valid(MiniDTReader, "tpg_hit_l3_valid");
-   // TTreeReaderArray<int> tpg_hit_l4_time(MiniDTReader, "tpg_hit_l4_time");
-   // TTreeReaderArray<int> tpg_hit_l4_lat(MiniDTReader, "tpg_hit_l4_lat");
-   // TTreeReaderArray<int> tpg_hit_l4_wire(MiniDTReader, "tpg_hit_l4_wire");
-   // TTreeReaderArray<int> tpg_hit_l4_valid(MiniDTReader, "tpg_hit_l4_valid");
-   // TTreeReaderArray<int> tpg_chamber(MiniDTReader, "tpg_chamber");
-   // TTreeReaderArray<int> tpg_orbit(MiniDTReader, "tpg_orbit");
-   TTreeReaderArray<double> tpg_timestamp(MiniDTReader, "tpg_timestamp");
+   // TTreeReaderValue<int> tpg_t0(MiniDTReader, "tpg_t0");
+   // TTreeReaderValue<int> tpg_position(MiniDTReader, "tpg_position");
+   // TTreeReaderValue<int> tpg_slope(MiniDTReader, "tpg_slope");
+   // TTreeReaderValue<int> tpg_chi2(MiniDTReader, "tpg_chi2");
+   // TTreeReaderValue<int> tpg_hit_l1_time(MiniDTReader, "tpg_hit_l1_time");
+   // TTreeReaderValue<int> tpg_hit_l1_lat(MiniDTReader, "tpg_hit_l1_lat");
+   // TTreeReaderValue<int> tpg_hit_l1_wire(MiniDTReader, "tpg_hit_l1_wire"); // layer is inferred form the hit order in
+   // the tpg index[0, 4] --> layer[0, 4] TTreeReaderValue<int> tpg_hit_l1_valid(MiniDTReader, "tpg_hit_l1_valid");
+   // TTreeReaderValue<int> tpg_hit_l2_time(MiniDTReader, "tpg_hit_l2_time");
+   // TTreeReaderValue<int> tpg_hit_l2_lat(MiniDTReader, "tpg_hit_l2_lat");
+   // TTreeReaderValue<int> tpg_hit_l2_wire(MiniDTReader, "tpg_hit_l2_wire");
+   // TTreeReaderValue<int> tpg_hit_l2_valid(MiniDTReader, "tpg_hit_l2_valid");
+   // TTreeReaderValue<int> tpg_hit_l3_time(MiniDTReader, "tpg_hit_l3_time");
+   // TTreeReaderValue<int> tpg_hit_l3_lat(MiniDTReader, "tpg_hit_l3_lat");
+   // TTreeReaderValue<int> tpg_hit_l3_wire(MiniDTReader, "tpg_hit_l3_wire");
+   // TTreeReaderValue<int> tpg_hit_l3_valid(MiniDTReader, "tpg_hit_l3_valid");
+   // TTreeReaderValue<int> tpg_hit_l4_time(MiniDTReader, "tpg_hit_l4_time");
+   // TTreeReaderValue<int> tpg_hit_l4_lat(MiniDTReader, "tpg_hit_l4_lat");
+   // TTreeReaderValue<int> tpg_hit_l4_wire(MiniDTReader, "tpg_hit_l4_wire");
+   // TTreeReaderValue<int> tpg_hit_l4_valid(MiniDTReader, "tpg_hit_l4_valid");
+   // TTreeReaderValue<int> tpg_chamber(MiniDTReader, "tpg_chamber");
+   // TTreeReaderValue<int> tpg_orbit(MiniDTReader, "tpg_orbit");
+   // TTreeReaderValue<double> tpg_timestamp(MiniDTReader, "tpg_timestamp");
 
    MiniDTReader.SetEntry(MiniDTeventNumber);
+   int MatchedHits = 0;
    while (MiniDTReader.Next()) {
-      if ((std::count_if(hit_orbit.begin(), hit_orbit.end(), [](int n) { return n < 0; }) == 0) && (hit_timestamp.GetSize() > 0)) {
-         std::vector<int> MatchID;
-         TTreeReaderArray<double>::iterator HitTimestampIt = hit_timestamp.begin();
-         while (HitTimestampIt != hit_timestamp.end()) {
-            HitTimestampIt = std::find_if(HitTimestampIt, hit_timestamp.end(), [&eventTimestamp](double i) { return (abs(i - static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6)))) < 1e-5; });
-            if (HitTimestampIt != hit_timestamp.end()) {
-               std::cout << *HitTimestampIt - static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6)) << '\n';
-               MatchID.push_back(std::distance(hit_timestamp.begin(), HitTimestampIt));
-               ++HitTimestampIt; 
-            }
+      auto SNDtimestamp = static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6));
+      if (((*hit_timestamp - SNDtimestamp) > -2e-7) && ((*hit_timestamp - SNDtimestamp) < 1e-6)) {
+         if (MatchedHits == 0) {
+            MiniDTeventNumber = MiniDTReader.GetCurrentEntry();
          }
-
-         if (MatchID.size() != 0) {
-            std::cout << "Matched MiniDT event: " << MiniDTReader.GetCurrentEntry() << " approx ts: " << hit_timestamp[MatchID[0]] << '\n';
-
-            for (int n = 0; n < static_cast<int>(MatchID.size()); ++n) {
-               if (digiDTStore.count(n) == 0) {
-                  digiDTStore[n] = new DriftTubeHit(n, abs(hit_timestamp[n] - static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6))), hit_tdc[n], hit_chamber[n], hit_layer[n], hit_wire[n]);
-               }
-            }
-
-            for (auto it_detID : digiDTStore) {
-               (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
-               indexDriftTube += 1;
-            }
-
-            MiniDTeventNumber = MiniDTReader.GetCurrentEntry(); 
-            ++MatchedEntries;
-            break;
-         } else {
-            continue;
+         if (digiDTStore.count(MatchedHits) == 0) {
+            digiDTStore[MatchedHits] = new DriftTubeHit(MatchedHits, *hit_timestamp - SNDtimestamp, *hit_tdc, *hit_chamber, *hit_layer, *hit_wire);
          }
-      } else {
+         ++MatchedHits;
+         std::cout << MatchedHits << '\n';
+      } else if ((*hit_timestamp - SNDtimestamp) > 1e-6) {
+         for (auto it_detID : digiDTStore) {
+            (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
+            indexDriftTube += 1;
+         }
+         if (digiDTStore.size() != 0) {
+            std::cout << digiDTStore.size() << " matched hits!\n";
+         }
+         // MiniDTeventNumber = MiniDTReader.GetCurrentEntry();
+         MatchedHits = 0;
+         ++MatchedEntries;
          break;
+      } else {
+         continue;
       }
    }
    LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
