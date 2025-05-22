@@ -14,6 +14,8 @@ public:
    DriftTubeHit(const DriftTubeHit &hit) = default;
    DriftTubeHit &operator=(const DriftTubeHit &hit) = default;
    explicit DriftTubeHit(Int_t detID);
+   //  Constructor from MiniDT raw data
+   explicit DriftTubeHit(Int_t detID, const Double_t& timestamp, const Int_t &tdc, const Int_t &station, const Int_t &layer, const Int_t &wire);
    //  Constructor from DriftTubePoint
    DriftTubeHit(int detID, std::vector<DriftTubePoint *>, std::vector<Float_t>);
 
@@ -32,14 +34,21 @@ public:
    bool isValid() const { return flag; }
    Int_t GetSystem() { return floor(fDetectorID / 10000); }
    Int_t GetStation() { return 1; } // do we need such a method? FIXME
-   Int_t GetPlane() { return int(fDetectorID / 1000) % 10; }
-   Int_t GetLayer() { return int(fDetectorID % 1000) / 100; }
-   Int_t GetCell() { return int(fDetectorID % 100); }
-   bool isVertical() { return GetPlane() == 1; }
-   Double_t GetDistance(); // FIXME format of output
+   // Int_t GetStation() { return m_station; }
+   // Int_t GetPlane() { return int(fDetectorID / 1000) % 10; }
+   Int_t GetPlane() { return m_station; }
+   // Int_t GetLayer() { return int(fDetectorID % 1000) / 100; }
+   Int_t GetLayer() { return m_layer; }
+   // Int_t GetCell() { return int(fDetectorID % 100); }
+   Int_t GetCell() { return m_wire; }
+   bool isVertical() { return GetPlane() == 1; } 
+   // Double_t GetDistance(); // FIXME format of output
 
 private:
    Float_t flag; ///< flag
+
+   Double_t m_timestamp; // questa si droppa dopo matching? dopo ci sarà pedestal (variabile) con SND, tanto vale tenerla
+   Int_t m_tdc, m_station, m_layer, m_wire;
 
    ClassDef(DriftTubeHit, 1);
 };

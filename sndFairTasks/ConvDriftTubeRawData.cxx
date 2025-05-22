@@ -54,8 +54,10 @@ InitStatus ConvDriftTubeRawData::Init()
    fSNDTree = (TTree *)f0->Get("rawConv");
    // fSNDTree->GetBranch("EventHeader.fEventTime");
 
-   // auto fMiniDT = static_cast<TFile *>(TFile::Open("/afs/cern.ch/user/g/guiducci/public/snd/mdt_tree_norb100_novl50_run_010743.root"));
-   auto fMiniDT = static_cast<TFile *>(TFile::Open("/eos/user/g/guiducci/temp-analysis/results_run_010988/mdt_tree_Norb10_Novl50_run_010988.root"));
+   // auto fMiniDT =
+   // static_cast<TFile*>(TFile::Open("/afs/cern.ch/user/g/guiducci/public/snd/mdt_tree_norb100_novl50_run_010743.root"));
+   auto fMiniDT = static_cast<TFile *>(
+      TFile::Open("/eos/user/g/guiducci/temp-analysis/results_run_010988/mdt_tree_Norb10_Novl50_run_010988.root"));
    // fMiniDTTree = static_cast<TTree *>(fMiniDT->Get("minidt_hits"));
    fMiniDTTree = static_cast<TTree *>(fMiniDT->Get("minidt"));
 
@@ -90,20 +92,21 @@ void ConvDriftTubeRawData::Exec(Option_t * /*opt*/)
 void ConvDriftTubeRawData::Process()
 {
    int indexDriftTube{}; // index of DT hits
-   int detID;
+   int detID;            // assegna valore!!
    fSNDTree->GetEvent(eventNumber);
    auto eventTimestamp = fSNDTree->GetLeaf("EventHeader.fEventTime")->GetValue();
 
    TTreeReader MiniDTReader(fMiniDTTree);
 
-   // TTreeReaderValue<int> n_hits(MiniDTReader, "n_hits");
+   TTreeReaderValue<int> n_hits(MiniDTReader, "n_hits");
+   // TTreeReaderArray<int> hit_orbit(MiniDTReader, "hit_orbit");
    TTreeReaderArray<long long> hit_orbit(MiniDTReader, "hit_orbit");
    // TTreeReaderArray<int> hit_bx(MiniDTReader, "hit_bx");
-   // TTreeReaderArray<int> hit_tdc(MiniDTReader, "hit_tdc");
+   TTreeReaderArray<int> hit_tdc(MiniDTReader, "hit_tdc");
    TTreeReaderArray<double> hit_timestamp(MiniDTReader, "hit_timestamp");
-   // TTreeReaderArray<int> hit_chamber(MiniDTReader, "hit_chamber");
-   // TTreeReaderArray<int> hit_layer(MiniDTReader, "hit_layer");
-   // TTreeReaderArray<int> hit_wire(MiniDTReader, "hit_wire");
+   TTreeReaderArray<int> hit_chamber(MiniDTReader, "hit_chamber");
+   TTreeReaderArray<int> hit_layer(MiniDTReader, "hit_layer");
+   TTreeReaderArray<int> hit_wire(MiniDTReader, "hit_wire");
    // TTreeReaderValue<int> n_tpgs(MiniDTReader, "n_tpgs");
    // TTreeReaderArray<int> tpg_t0(MiniDTReader, "tpg_t0");
    // TTreeReaderArray<int> tpg_position(MiniDTReader, "tpg_position");
@@ -132,21 +135,32 @@ void ConvDriftTubeRawData::Process()
    MiniDTReader.SetEntry(MiniDTeventNumber);
    while (MiniDTReader.Next()) {
       if ((std::count_if(hit_orbit.begin(), hit_orbit.end(), [](int n) { return n < 0; }) == 0) && (hit_timestamp.GetSize() > 0)) {
-         TTreeReaderArray<double>::iterator HitTimestampIt = std::min_element(hit_timestamp.begin(), hit_timestamp.end());
-         // double MinHitTimestamp = *HitTimestampIt;
-         double t_diff_hit = *HitTimestampIt - static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6));
-         // double t_diff_tpg = tpg_timestamp[0] - static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6));
+         std::vector<int> MatchID;
+         TTreeReaderArray<double>::iterator HitTimestampIt = hit_timestamp.begin();
+         while (HitTimestampIt != hit_timestamp.end()) {
+            HitTimestampIt = std::find_if(HitTimestampIt, hit_timestamp.end(), [&eventTimestamp](double i) { return (abs(i - static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6)))) < 1e-5; });
+            if (HitTimestampIt != hit_timestamp.end()) {
+               std::cout << *HitTimestampIt - static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6)) << '\n';
+               MatchID.push_back(std::distance(hit_timestamp.begin(), HitTimestampIt));
+               ++HitTimestampIt; 
+            }
+         }
 
-         // if ((abs(t_diff_hit) < 4e-6) || abs(t_diff_tpg < 1.6e-6)) { // così abbiamo finestra prima e dopo hit/tpg
-         // MiniDT
-         if (abs(t_diff_hit) < 6e-6) { // così abbiamo finestra prima e dopo hit/tpg MiniDT
-            std::cout << "t_diff_hit: " << t_diff_hit << '\n';
-            // std::cout << "t_diff_tpg: " << t_diff_tpg << '\n';
-            // std::cout << "t SND: " << eventTimestamp / (4 * 40.0789 * 1e6) << " t MiniDT hit: " << hit_timestamp[0]
-            // << " t MiniDT tpg: " << tpg_timestamp[0] << '\n';
-            std::cout << "t SND: " << eventTimestamp / (4 * 40.0789 * 1e6) << " t MiniDT hit: " << *HitTimestampIt << '\n';
-            digiDTStore[detID] = new DriftTubeHit(detID);
-            MiniDTeventNumber = MiniDTReader.GetCurrentEntry(); // tenere questo indice come nuovo start per reader
+         if (MatchID.size() != 0) {
+            std::cout << "Matched MiniDT event: " << MiniDTReader.GetCurrentEntry() << " approx ts: " << hit_timestamp[MatchID[0]] << '\n';
+
+            for (int n = 0; n < static_cast<int>(MatchID.size()); ++n) {
+               if (digiDTStore.count(n) == 0) {
+                  digiDTStore[n] = new DriftTubeHit(n, abs(hit_timestamp[n] - static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6))), hit_tdc[n], hit_chamber[n], hit_layer[n], hit_wire[n]);
+               }
+            }
+
+            for (auto it_detID : digiDTStore) {
+               (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
+               indexDriftTube += 1;
+            }
+
+            MiniDTeventNumber = MiniDTReader.GetCurrentEntry(); 
             ++MatchedEntries;
             break;
          } else {
@@ -156,30 +170,7 @@ void ConvDriftTubeRawData::Process()
          break;
       }
    }
-
-   // // Loop over hits per event!
-   // for (int n = 0; n < fSNDTree->GetLeaf("nHits")->GetValue(); n++) { // FIXME - this is simply an example
-
-   //    // FIXME add conversion below
-
-   //    // store the hits internally per event
-   //    if (digiDTStore.count(detID) == 0) {
-   //       // make the hit via the hit constructor
-   //       // e.g. digiDTStore[detID] = new DriftTubeHit(detID,xxx);
-   //    }
-   //    // would be nice to have a link btw raw hit and converted one - below is example
-   //    // from the SciFi where we use the DAQ RO params
-   //    // digiDTStore[detID]->SetDaqID(sipm_number,n, board_id, tofpet_id, tofpet_channel);
-   // } // end loop over hits in the event
-
-   // // write the hits to the output
-   // for (auto it_detID : digiDTStore) {
-   //    (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
-   //    indexDriftTube += 1;
-   // }
-   // LOG(INFO) << fnStart + 1 << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
-   
-   // LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
+   LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
    UpdateInput(eventNumber);
 }
 

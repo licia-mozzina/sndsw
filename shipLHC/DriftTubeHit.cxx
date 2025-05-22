@@ -18,6 +18,12 @@ DriftTubeHit::DriftTubeHit(Int_t detID) : SndlhcHit(detID)
 {
    flag = true;
 }
+// -----   Constructor from from MiniDT raw data  ------------------------------------------
+DriftTubeHit::DriftTubeHit(Int_t detID, const Double_t& timestamp, const Int_t &tdc, const Int_t &station, const Int_t &layer, const Int_t &wire) : SndlhcHit(detID), m_timestamp(timestamp), m_tdc(tdc), m_station(station), m_layer(layer), m_wire(wire) 
+{
+   flag = true;
+}
+
 // -----   constructor from point class  ------------------------------------------
 DriftTubeHit::DriftTubeHit(int detID, std::vector<DriftTubePoint *> V, std::vector<Float_t> W)
 {
