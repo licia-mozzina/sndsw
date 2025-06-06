@@ -7,6 +7,7 @@
 #include <TBranch.h>
 #include <TLeaf.h>
 #include <TROOT.h>
+#include <TChain.h>
 #include <TTreeReader.h>
 #include <TTreeReaderValue.h>
 #include <TTreeReaderArray.h>
@@ -14,6 +15,8 @@
 #include <algorithm> // std::sort
 #include <vector>    // std::vector
 #include <cmath>
+#include <numeric>   // std::iota
+#include <stdio.h>   // sprintf
 #include "FairMCEventHeader.h"    // for FairMCEventHeader
 #include "FairLink.h"             // for FairLink
 #include "FairRunAna.h"           // for FairRunAna
@@ -24,7 +27,7 @@
 // FIXME cleanup headers
 
 ConvDriftTubeRawData::ConvDriftTubeRawData()
-   : FairTask("ConvDriftTubeRawData"), fSNDTree(nullptr), fMiniDTTree(nullptr), fDigiDriftTube(nullptr),
+   : FairTask("ConvDriftTubeRawData"), fSNDTree(nullptr), fMiniDTChain(nullptr), fDigiDriftTube(nullptr),
      MiniDTeventNumber(0), MatchedEntries(0)
 {
 }
@@ -54,12 +57,26 @@ InitStatus ConvDriftTubeRawData::Init()
    fSNDTree = (TTree *)f0->Get("rawConv");
    // fSNDTree->GetBranch("EventHeader.fEventTime");
 
-   auto fMiniDT = static_cast<TFile *>(
-      TFile::Open("/eos/user/g/guiducci/temp-analysis/trees_minidt_run_011049/minidt_run_011049_hits.root"));
-   fMiniDTTree = static_cast<TTree *>(fMiniDT->Get("minidt_hits"));
+   fMiniDTChain = new TChain("minidt_hits"); // FIXME delete?
+   fMiniDTChain->Add("/eos/user/g/guiducci/temp-analysis/trees_minidt_run_011049/minidt_run_011049_hits.root");
+   std::array<int, 17> nFiles;
+   std::iota(nFiles.begin(), nFiles.end(), 1);
+   for (auto i : nFiles) {
+      if (i > 0) {
+         char fMiniDT[200];
+         sprintf(fMiniDT, "/eos/user/g/guiducci/temp-analysis/trees_minidt_run_011049/minidt_run_011049_hits_%i.root", i);
+         fMiniDTChain->Add(fMiniDT);
+         // fMiniDTChain->Add("/eos/user/g/guiducci/temp-analysis/trees_minidt_run_011049/minidt_run_011049_hits_%i.root");
+      } else continue;
+   }
+
+
+   // auto fMiniDT = static_cast<TFile *>(
+   //    TFile::Open("/eos/user/g/guiducci/temp-analysis/trees_minidt_run_011049/minidt_run_011049_tpgs_y.root"));
+   // fMiniDTTree = static_cast<TTree *>(fMiniDT->Get("minidt_tpgs_y"));
 
    // Register the output
-   fDigiDriftTube = new TClonesArray("DriftTubeHit");
+   fDigiDriftTube = new TClonesArray("DriftTubeHit"); // FIXME dictionary?
    ioman->Register("Digi_DriftTubeHits", "DigiDriftTubeHit_det", fDigiDriftTube, kTRUE);
 
    // Get the FairLogger
@@ -93,16 +110,15 @@ void ConvDriftTubeRawData::Process()
    fSNDTree->GetEvent(eventNumber);
    auto eventTimestamp = fSNDTree->GetLeaf("EventHeader.fEventTime")->GetValue();
 
-   TTreeReader MiniDTReader(fMiniDTTree);
+   TTreeReader MiniDTReader(fMiniDTChain);
 
-   TTreeReaderValue<long long> hit_orbit(MiniDTReader, "hit_orbit");
+   // TTreeReaderValue<long long> hit_orbit(MiniDTReader, "hit_orbit");
    // TTreeReaderValue<int> hit_bx(MiniDTReader, "hit_bx");
    TTreeReaderValue<int> hit_tdc(MiniDTReader, "hit_tdc");
    TTreeReaderValue<double> hit_timestamp(MiniDTReader, "hit_timestamp");
    TTreeReaderValue<int> hit_chamber(MiniDTReader, "hit_chamber");
    TTreeReaderValue<int> hit_layer(MiniDTReader, "hit_layer");
    TTreeReaderValue<int> hit_wire(MiniDTReader, "hit_wire");
-   // TTreeReaderValue<int> n_tpgs(MiniDTReader, "n_tpgs");
    // TTreeReaderValue<int> tpg_t0(MiniDTReader, "tpg_t0");
    // TTreeReaderValue<int> tpg_position(MiniDTReader, "tpg_position");
    // TTreeReaderValue<int> tpg_slope(MiniDTReader, "tpg_slope");
@@ -156,6 +172,36 @@ void ConvDriftTubeRawData::Process()
          continue;
       }
    }
+
+   // MiniDTReader.SetEntry(MiniDTeventNumber);
+   // int MatchedTPGs = 0;
+   // while (MiniDTReader.Next()) {
+   //    auto SNDtimestamp = static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6));
+   //    if (((*tpg_timestamp - SNDtimestamp) > -1e-7) && ((*tpg_timestamp - SNDtimestamp) < 3e-7)) {
+   //       if (MatchedTPGs == 0) {
+   //          MiniDTeventNumber = MiniDTReader.GetCurrentEntry();
+   //       }
+   //       if (digiDTStore.count(MatchedTPGs) == 0) {
+   //          digiDTStore[MatchedTPGs] = new DriftTubeHit(MatchedTPGs, *tpg_timestamp - SNDtimestamp, *tpg_t0, *tpg_position, *tpg_slope, *tpg_chi2);
+   //       }
+   //       ++MatchedTPGs;
+   //       std::cout << MatchedTPGs << '\n';
+   //    } else if ((*tpg_timestamp - SNDtimestamp) > 3e-7) {
+   //       for (auto it_detID : digiDTStore) {
+   //          (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
+   //          indexDriftTube += 1;
+   //       }
+   //       if (digiDTStore.size() != 0) {
+   //          std::cout << digiDTStore.size() << " matched hits!\n";
+   //       }
+   //       MatchedTPGs = 0;
+   //       ++MatchedEntries;
+   //       break;
+   //    } else {
+   //       continue;
+   //    }
+   // }
+
    LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
    UpdateInput(eventNumber);
 }
@@ -168,6 +214,6 @@ void ConvDriftTubeRawData::UpdateInput(int NewStart)
 
 void ConvDriftTubeRawData::PrintMatchedEntries()
 {
-   std::cout << MatchedEntries << " matched entries out of " << fMiniDTTree->GetEntries()
+   std::cout << MatchedEntries << " matched entries out of " << fMiniDTChain->GetEntries()
              << " MiniDT Tree total entries. \n";
 }

@@ -33,7 +33,7 @@ parser = ArgumentParser()
 parser.add_argument(
     "-f", "--inputFile", dest="inputFile", help="single input file", required=True
 )
-# parser.add_argument("-g", "--geoFile", dest="geoFile", help="geofile", required=True) # maybe to extract some params?
+parser.add_argument("-g", "--geoFile", dest="geoFile", help="geofile", required=True) # maybe to extract some params?
 parser.add_argument(
     "-n",
     "--nEvents",
@@ -51,13 +51,16 @@ timer.Start()
 
 # outfile name
 tmp = options.inputFile.split("/")
-outFile = tmp[len(tmp) - 1].replace(".root", "_dig.root")
+# outFile = tmp[len(tmp) - 1].replace(".root", "_dig.root")
+tmpOutFile = tmp[len(tmp) - 1].replace(".root", "_dig.root")
+runN = options.inputFile.split("/")[-2][4:]
+outFile = "/eos/user/l/lmozzina/MiniDT/matching/run_" + runN + "/" + tmpOutFile
 
 # -----Create geometry----------------------------------------------
-# snd_geo = SndlhcGeo.GeoInterface(options.geoFile)
+snd_geo = SndlhcGeo.GeoInterface(options.geoFile)
 
 # if needed to read the etector geometry
-# lsOfGlobals  = ROOT.gROOT.GetListOfGlobals()
+lsOfGlobals  = ROOT.gROOT.GetListOfGlobals()
 # DriftTubeDet     = lsOfGlobals.FindObject('DriftTube')
 
 run = ROOT.FairRunAna()
@@ -96,6 +99,17 @@ run.AddTask(ConvDriftTubeTask)
 run.Init()
 run.Run(firstEvent, nEvents)
 ConvDriftTubeTask.PrintMatchedEntries()
+
+# outTree = ioman.GetOutTree()
+# treeList = ROOT.TList()
+# # treeList.Add(inTree)
+# treeList.Add(outTree)
+# # mergedTree = ROOT.TTree("new_tree", "new_tree")
+# mergedTree = inTree.CloneTree()
+# mergedTree.Merge(treeList)
+# mergedTree.Write()
+# # mergedTree = ROOT.TTree.MergeTrees(treeList)
+# print(mergedTree.Print())
 
 timer.Stop()
 rtime = timer.RealTime()

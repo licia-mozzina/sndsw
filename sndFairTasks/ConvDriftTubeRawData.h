@@ -4,6 +4,7 @@
 #include <Rtypes.h>     // for THashConsistencyHolder, ClassDef
 #include <RtypesCore.h> // for Double_t, Int_t, Option_t
 #include <TClonesArray.h>
+#include <TChain.h>
 #include "FairTask.h"     // for FairTask, InitStatus
 #include "DriftTube.h"    // for DriftTube detector
 #include "DriftTubeHit.h" // for DriftTube hits
@@ -42,7 +43,8 @@ private:
 
    // Input
    TTree *fSNDTree;
-   TTree *fMiniDTTree;
+   // TTree *fMiniDTTree;
+   TChain *fMiniDTChain;
    int frunNumber, eventNumber; 
    long MiniDTeventNumber;
    int MatchedEntries;
