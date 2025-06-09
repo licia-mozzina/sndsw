@@ -40,7 +40,7 @@ parser.add_argument(
     dest="nEvents",
     type=int,
     help="number of events to process",
-    default=100000,
+    default=1000000,
 )
 parser.add_argument("-d", "--Debug", dest="debug", help="debug", default=False)
 
