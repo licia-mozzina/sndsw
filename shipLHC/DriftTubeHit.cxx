@@ -19,7 +19,7 @@ DriftTubeHit::DriftTubeHit(Int_t detID) : SndlhcHit(detID)
    flag = true;
 }
 // -----   Constructor from from MiniDT raw data  ------------------------------------------
-DriftTubeHit::DriftTubeHit(Int_t detID, const Double_t& timestamp, const Int_t &tdc, const Int_t &station, const Int_t &layer, const Int_t &wire) : SndlhcHit(detID), m_timestamp(timestamp), m_tdc(tdc), m_station(station), m_layer(layer), m_wire(wire) 
+DriftTubeHit::DriftTubeHit(Int_t detID, const Double_t& m_timestamp, const Int_t &m_station, const Int_t &m_layer, const Int_t &m_wire) : SndlhcHit(detID), timestamp(m_timestamp), station(m_station), layer(m_layer), wire(m_wire) 
 {
    flag = true;
 }

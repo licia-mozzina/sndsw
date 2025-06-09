@@ -59,7 +59,7 @@ InitStatus ConvDriftTubeRawData::Init()
 
    fMiniDTChain = new TChain("minidt_hits"); // FIXME delete?
    fMiniDTChain->Add("/eos/user/g/guiducci/temp-analysis/trees_minidt_run_011049/minidt_run_011049_hits.root");
-   std::array<int, 17> nFiles;
+   std::array<int, 16> nFiles;
    std::iota(nFiles.begin(), nFiles.end(), 1);
    for (auto i : nFiles) {
       if (i > 0) {
@@ -114,7 +114,7 @@ void ConvDriftTubeRawData::Process()
 
    // TTreeReaderValue<long long> hit_orbit(MiniDTReader, "hit_orbit");
    // TTreeReaderValue<int> hit_bx(MiniDTReader, "hit_bx");
-   TTreeReaderValue<int> hit_tdc(MiniDTReader, "hit_tdc");
+   // TTreeReaderValue<int> hit_tdc(MiniDTReader, "hit_tdc");
    TTreeReaderValue<double> hit_timestamp(MiniDTReader, "hit_timestamp");
    TTreeReaderValue<int> hit_chamber(MiniDTReader, "hit_chamber");
    TTreeReaderValue<int> hit_layer(MiniDTReader, "hit_layer");
@@ -152,7 +152,7 @@ void ConvDriftTubeRawData::Process()
             MiniDTeventNumber = MiniDTReader.GetCurrentEntry();
          }
          if (digiDTStore.count(MatchedHits) == 0) {
-            digiDTStore[MatchedHits] = new DriftTubeHit(MatchedHits, *hit_timestamp - SNDtimestamp, *hit_tdc, *hit_chamber, *hit_layer, *hit_wire);
+            digiDTStore[MatchedHits] = new DriftTubeHit(MatchedHits, *hit_timestamp - SNDtimestamp, *hit_chamber, *hit_layer, *hit_wire);
          }
          ++MatchedHits;
          std::cout << MatchedHits << '\n';
