@@ -47,27 +47,24 @@ InitStatus ConvDriftTubeRawData::Init()
    // Input raw data file is read from the FairRootManager
    // This allows to have it in custom format, e.g. have arbitary names of TTrees
 
-   // // raw SND
-   // TFile *f0 = dynamic_cast<TFile *>(ioman->GetObject("data"));
-   // fSNDTree = (TTree *)f0->Get("data");
-   // fSNDTree->GetBranch("evt_timestamp");
-
    // converted SND
    TFile *f0 = dynamic_cast<TFile *>(ioman->GetObject("rawConv"));
    fSNDTree = (TTree *)f0->Get("rawConv");
    // fSNDTree->GetBranch("EventHeader.fEventTime");
 
-   fMiniDTChain = new TChain("minidt_hits"); // FIXME delete?
-   fMiniDTChain->Add("/eos/user/g/guiducci/temp-analysis/after_ts1_analysis/minidt_run_011833_trees/minidt_run_011833_hits.root");
-   std::array<int, 68> nFiles;
-   std::iota(nFiles.begin(), nFiles.end(), 1);
-   for (auto i : nFiles) {
-      if (i > 0) {
-         char fMiniDT[200];
-         sprintf(fMiniDT, "/eos/user/g/guiducci/temp-analysis/after_ts1_analysis/minidt_run_011833_trees/minidt_run_011833_hits_%i.root", i);
-         fMiniDTChain->Add(fMiniDT);
-      } else continue;
-   }
+   fMiniDTChain = (TChain *)ioman->GetObject("MiniDTChain");
+
+   // fMiniDTChain = new TChain("minidt_hits"); // FIXME delete?
+   // fMiniDTChain->Add("/eos/user/g/guiducci/temp-analysis/after_ts1_analysis/minidt_run_011833_trees/minidt_run_011833_hits.root");
+   // std::array<int, 68> nFiles;
+   // std::iota(nFiles.begin(), nFiles.end(), 1);
+   // for (auto i : nFiles) {
+   //    if (i > 0) {
+   //       char fMiniDT[200];
+   //       sprintf(fMiniDT, "/eos/user/g/guiducci/temp-analysis/after_ts1_analysis/minidt_run_011833_trees/minidt_run_011833_hits_%i.root", i);
+   //       fMiniDTChain->Add(fMiniDT);
+   //    } else continue;
+   // }
 
    // Register the output
    fDigiDriftTube = new TClonesArray("DriftTubeHit"); // FIXME dictionary?
@@ -123,14 +120,14 @@ void ConvDriftTubeRawData::Process()
             digiDTStore[MatchedHits] = new DriftTubeHit(MatchedHits, *hit_timestamp - SNDtimestamp, *hit_chamber, *hit_layer, *hit_wire);
          }
          ++MatchedHits;
-         std::cout << MatchedHits << '\n';
+         // std::cout << MatchedHits << '\n';
       } else if ((*hit_timestamp - SNDtimestamp) > 1e-6) {
          for (auto it_detID : digiDTStore) {
             (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
             indexDriftTube += 1;
          }
          if (digiDTStore.size() != 0) {
-            std::cout << digiDTStore.size() << " matched hits!\n";
+            // std::cout << digiDTStore.size() << " matched hits!\n";
          }
          // MiniDTeventNumber = MiniDTReader.GetCurrentEntry();
          MatchedHits = 0;
@@ -141,7 +138,7 @@ void ConvDriftTubeRawData::Process()
       }
    }
 
-   LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
+   // LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
    UpdateInput(eventNumber);
 }
 
@@ -151,8 +148,8 @@ void ConvDriftTubeRawData::UpdateInput(int NewStart)
    eventNumber = NewStart;
 }
 
-void ConvDriftTubeRawData::PrintMatchedEntries()
-{
-   std::cout << MatchedEntries << " matched entries out of " << fMiniDTChain->GetEntries()
-             << " MiniDT Tree total entries. \n";
-}
+// void ConvDriftTubeRawData::PrintMatchedEntries()
+// {
+//    std::cout << MatchedEntries << " matched entries out of " << fMiniDTChain->GetEntries()
+//              << " MiniDT Tree total entries. \n";
+// }
