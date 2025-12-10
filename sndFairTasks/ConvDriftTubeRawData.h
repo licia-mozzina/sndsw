@@ -46,7 +46,6 @@ private:
    TChain *fMiniDTChain;
    int frunNumber, eventNumber; 
    long MiniDTeventNumber;
-   int MatchedEntries;
    int fnStart = 0;
    int fnEvents;
    double runStartUTC;

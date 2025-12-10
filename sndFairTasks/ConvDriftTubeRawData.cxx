@@ -148,8 +148,3 @@ void ConvDriftTubeRawData::UpdateInput(int NewStart)
    eventNumber = NewStart;
 }
 
-// void ConvDriftTubeRawData::PrintMatchedEntries()
-// {
-//    std::cout << MatchedEntries << " matched entries out of " << fMiniDTChain->GetEntries()
-//              << " MiniDT Tree total entries. \n";
-// }
