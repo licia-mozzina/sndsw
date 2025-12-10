@@ -148,6 +148,12 @@ class Monitoring():
                    self.clusScifi       = T.clusScifi
                else: T.Init()
             self.run = self.converter.run
+            if self.eventTree.EventHeader.GetAccMode()==12: # ion runs
+               self.Nbunches = 1782
+               self.div = 8
+            else: # proton runs
+               self.Nbunches = 3564
+               self.div = 4
             return
         else:
             if options.fname:
@@ -333,7 +339,11 @@ class Monitoring():
               self.snd_geo.modules['Scifi'].InitEvent(self.eventTree.EventHeader)
               self.snd_geo.modules['MuFilter'].InitEvent(self.eventTree.EventHeader)
             if self.MonteCarlo: self.Weight = self.eventTree.MCTrack[0].GetWeight()
-            for t in self.FairTasks: self.FairTasks[t].ExecuteTask()
+            for t in self.FairTasks:
+              if t =='simpleTracking':
+                 self.FairTasks[t].ExecuteTask(self.options.trackType)
+              else:
+                 self.FairTasks[t].ExecuteTask()
       self.EventNumber = n
 
 # check for bunch xing type
@@ -527,7 +537,7 @@ class Monitoring():
                 p = plane//2
              self.MuFilter.GetPosition(s*10000+p*1000+bar,A,B)
              zPos['MuFilter'][s*10+plane] = (A.Z()+B.Z())/2.
-      for s in range(1,6):
+      for s in range(1,self.Scifi.GetConfParI("Scifi/nscifi")+1):
          mat   = 1
          sipm = 1
          channel = 64

@@ -121,13 +121,27 @@ void DriftTube::ConstructGeometry()
    Double_t fIBeamThickness = conf_floats["DriftTube/IBeamThickness"];
    Double_t fIBeamWingThickness = conf_floats["DriftTube/IBeamWingThickness"];
    Double_t fIBeamWingWidth = conf_floats["DriftTube/IBeamWingWidth"];
+   // Plates separating the active layers
    Double_t fPlateThickness = conf_floats["DriftTube/plateThickness"];
    Double_t fPlateWidth = conf_floats["DriftTube/plateWidth"];
    Double_t fPlateLength = conf_floats["DriftTube/plateLength"];
+   // Cover plates
    Double_t fcoverPlateThickness = conf_floats["DriftTube/coverPlateThickness"];
    Double_t fcoverPlateWidth = conf_floats["DriftTube/coverPlateWidth"];
    Double_t fcoverPlateLength = conf_floats["DriftTube/coverPlateLength"];
    Double_t fAnodeRad = conf_floats["DriftTube/anodeRad"];
+   // Frame
+   Double_t fFrameThickness = conf_floats["DriftTube/frameThickness"];
+   Double_t fFrameWidth = conf_floats["DriftTube/frameWidth"];
+   Double_t fFrameLength = conf_floats["DriftTube/frameLength"];
+   Double_t fFrameHoleThickness = conf_floats["DriftTube/frameHoleThickness"];
+   Double_t fFrameHoleWidth = conf_floats["DriftTube/frameHoleWidth"];
+   Double_t fFrameHoleLength = conf_floats["DriftTube/frameHoleLength"];
+   Double_t fFrameTopThickness =  conf_floats["DriftTube/frameTopThickness"];
+   // Side bars
+   Double_t fSideBarThickness = conf_floats["DriftTube/sideBarThickness"];
+   Double_t fSideBarWidth = conf_floats["DriftTube/sideBarWidth"];
+   Double_t fSideBarLength = conf_floats["DriftTube/sideBarLength"];   
    Int_t nPlanes = conf_ints["DriftTube/nPlanes"]; // Number of DT planes
    Int_t nLayers = conf_ints["DriftTube/nLayers"]; // Number of layers per plane
    Int_t nCells = conf_ints["DriftTube/nCells"];   // Number of cells per layer
@@ -140,8 +154,11 @@ void DriftTube::ConstructGeometry()
    edge_DriftTube[2] =
       TVector3(-conf_floats["DriftTube/DT2Dx"], conf_floats["DriftTube/DT2Dz"], conf_floats["DriftTube/DT2Dy"]);
    // local position of bottom XX(e.g. horizontal) cell to survey edge
-   TVector3 LocCellDT =
-      TVector3(-conf_floats["DriftTube/DTLocX"], conf_floats["DriftTube/DTLocZ"], conf_floats["DriftTube/DTLocY"]);
+   std::map<int, TVector3> LocCellDT;
+   LocCellDT[1] =
+      TVector3(-conf_floats["DriftTube/DT1LocX"], conf_floats["DriftTube/DT1LocZ"], conf_floats["DriftTube/DT1LocY"]);
+   LocCellDT[2] =
+      TVector3(-conf_floats["DriftTube/DT2LocX"], conf_floats["DriftTube/DT2LocZ"], conf_floats["DriftTube/DT2LocY"]);
    // system alignment parameters
    // Double_t fDriftTubeShiftX   = conf_floats["DriftTube/ShiftX"];
 
@@ -195,6 +212,23 @@ void DriftTube::ConstructGeometry()
    TGeoBBox *cellBox = dynamic_cast<TGeoBBox *>(volGasCell->GetShape());
 
    // Define the plates used for covers, support and seperators between layers
+   // Endcap frame
+   TGeoBBox *halfFrameOuterBox = new TGeoBBox("halfFrameOuterBox", fFrameWidth / 2, fFrameLength / 2, fFrameThickness / 2);
+   // Subtract a box to make the frame hollow
+   TGeoBBox *halfFrameHole =
+      new TGeoBBox("halfFrameHole", fFrameHoleWidth / 2, fFrameHoleLength / 2, fFrameHoleThickness / 2 );
+   TGeoBBox *halfFrameTopBox = new TGeoBBox("halfFrameTopBox", fFrameWidth / 2, fFrameLength / 2, fFrameTopThickness / 2);
+   TGeoTranslation *t1 = new TGeoTranslation("t1", 0, 0, fFrameThickness/2 + fFrameTopThickness / 2);
+   t1->RegisterYourself();
+   TGeoCompositeShape *frameShape = new TGeoCompositeShape("frameShape", "halfFrameOuterBox-halfFrameHole:t0+halfFrameTopBox:t1");
+   TGeoVolume *volFrame = new TGeoVolume("volFrame", frameShape, aluminium);
+   volFrame->SetLineColor(kGray + 4);
+   // Side bars
+   TGeoBBox *sideBar = new TGeoBBox("sideBar", fSideBarWidth /2 , fSideBarLength /2, fSideBarThickness /2);
+   TGeoVolume *volSideBar = new TGeoVolume("volSideBar", sideBar, aluminium);
+   volSideBar->SetLineColor(kGray + 5);
+   
+   // The seperators between layers
    TGeoBBox *plate = new TGeoBBox("plate", fPlateWidth / 2, fPlateThickness / 2, fPlateLength / 2);
    TGeoVolume *volPlate = new TGeoVolume("volPlate", plate, aluminium);
    volPlate->SetLineColor(kGray);
@@ -203,9 +237,11 @@ void DriftTube::ConstructGeometry()
    TGeoVolume *volCoverPlate = new TGeoVolume("volCoverPlate", coverPlate, aluminium);
    volCoverPlate->SetLineColor(kGray + 2);
 
+
+   double DTlayerBox_x{};
    // Arrange the DT planes, layers and cells together
    for (auto &&plane : TSeq(nPlanes)) {
-      TGeoVolumeAssembly *volDTplane = new TGeoVolumeAssembly("volPlane");
+      TGeoVolumeAssembly *volDTplane = new TGeoVolumeAssembly("volDriftTubePlane");
       volDTplane->AddNode(volCoverPlate, 1, new TGeoTranslation(fcoverPlateWidth / 2, fcoverPlateThickness / 2, 0.));
       for (auto &&layer : TSeq(nLayers)) {
          TGeoVolumeAssembly *volDTlayer = new TGeoVolumeAssembly("volLayer");
@@ -223,22 +259,40 @@ void DriftTube::ConstructGeometry()
          }
          volDTplane->AddNode(
             volDTlayer, layer,
-            new TGeoTranslation(layer % 2 * cellBox->GetDX(),
+            new TGeoTranslation( -fcoverPlateWidth/ 2 + nCells*(cellBox->GetDX()+IbeamBox->GetDX())  + (layer+1) % 2 * cellBox->GetDX(),
                                 fcoverPlateThickness + layer * (fPlateThickness + 2 * IbeamBox->GetDY()), 0));
+         // Add the side bars: one per side of a layer
+         for (auto &&side : TSeq(2)) {
+            volDTplane->AddNode(
+               volSideBar, 0,
+               new TGeoCombiTrans(TGeoTranslation( side* fcoverPlateWidth,
+                                   fSideBarLength/2 + fcoverPlateThickness + layer * (fPlateThickness + 2 * IbeamBox->GetDY()),
+                                   0), 
+                                   TGeoRotation("rot_all", 90, 90., 90.)));
+         }
          if (layer != nLayers - 1) {
             volDTplane->AddNode(volPlate, 0,
-                                new TGeoTranslation(fcoverPlateWidth / 2 + layer % 2 * cellBox->GetDX(),
+                                new TGeoTranslation(  fcoverPlateWidth/ 2,
                                                     fPlateThickness / 2 + fcoverPlateThickness + 2 * IbeamBox->GetDY() +
                                                        layer * (fPlateThickness + 2 * IbeamBox->GetDY()),
                                                     0));
          }
       }
       volDTplane->AddNode(volCoverPlate, 1,
-                          new TGeoTranslation(fcoverPlateWidth / 2 + (nLayers - 1) % 2 * cellBox->GetDX(),
+                          new TGeoTranslation( fcoverPlateWidth / 2,
                                               fcoverPlateThickness / 2 + fcoverPlateThickness + 2 * IbeamBox->GetDY() +
                                                  (nLayers - 1) * (fPlateThickness + 2 * IbeamBox->GetDY()),
                                               0));
-      displacement = edge_DriftTube[plane + 1] + LocCellDT; // + TVector3(-fVetoBarX/2, 0, 0);
+      // Add the endcap frame
+      volDTplane->AddNode(volFrame, 2,
+                          new TGeoTranslation(  fcoverPlateWidth / 2,
+				               ( 3 * fPlateThickness + 2 * fcoverPlateThickness + nLayers * 2*IbeamBox->GetDY()) / 2,
+                                                 fcoverPlateLength / 2 + fFrameThickness/2 ));
+      volDTplane->AddNode(volFrame, 2,
+                          new TGeoTranslation(  fcoverPlateWidth / 2,
+                                               ( 3 * fPlateThickness + 2 * fcoverPlateThickness + nLayers * 2*IbeamBox->GetDY()) / 2,
+                                                - fcoverPlateLength / 2 - fFrameThickness/2 - fFrameTopThickness ));
+      displacement = edge_DriftTube[plane + 1] + LocCellDT[plane+1];
       detector->AddNode(volDTplane, plane,
                         new TGeoCombiTrans(TGeoTranslation(displacement.X(), displacement.Y(), displacement.Z()),
                                            TGeoRotation("rot3", -(plane + 1) * 90., 90., 0)));
@@ -304,7 +358,7 @@ void DriftTube::GetPosition(Int_t fDetectorID, TVector3 &A, TVector3 &B)
    TString path = TString::Format("/cave_1/"
                                   "Detector_0/"
                                   "volDriftTube_0/"
-                                  "volPlane_%d/"
+                                  "volDriftTubePlane_%d/"
                                   "volLayer_%d/"
                                   "volCell_%d/",
                                   plane, layer, cell);
