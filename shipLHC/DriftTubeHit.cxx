@@ -9,17 +9,24 @@
 #include <iomanip>
 
 // -----   Default constructor   -------------------------------------------
-DriftTubeHit::DriftTubeHit() : SndlhcHit()
+DriftTubeHit::DriftTubeHit() 
+   : TObject(),
+    fDetectorID(-1)
 {
-   flag = true;
 }
 // -----   Standard constructor   ------------------------------------------
-DriftTubeHit::DriftTubeHit(Int_t detID) : SndlhcHit(detID)
+DriftTubeHit::DriftTubeHit(Int_t detID) 
+   : TObject(),
+   fDetectorID(detID)
 {
    flag = true;
 }
 // -----   Constructor from from MiniDT raw data  ------------------------------------------
-DriftTubeHit::DriftTubeHit(Int_t detID, const Double_t& m_timestamp, const Int_t &m_station, const Int_t &m_layer, const Int_t &m_wire) : SndlhcHit(detID), timestamp(m_timestamp), station(m_station), layer(m_layer), wire(m_wire) 
+// DriftTubeHit::DriftTubeHit(Int_t detID, const Double_t& m_timestamp, const Int_t &m_station, const Int_t &m_layer, const Int_t &m_wire) : fDetectorID(detID), timestamp(m_timestamp), station(m_station), layer(m_layer), wire(m_wire) 
+// {
+//    flag = true;
+// }
+DriftTubeHit::DriftTubeHit(Int_t detID, const Double_t& m_timestamp) : TObject(), fDetectorID(detID), timestamp(m_timestamp)
 {
    flag = true;
 }
@@ -30,11 +37,11 @@ DriftTubeHit::DriftTubeHit(int detID, std::vector<DriftTubePoint *> V, std::vect
    DriftTube *DriftTubeDet = dynamic_cast<DriftTube *>(gROOT->GetListOfGlobals()->FindObject("DriftTube"));
    // Float_t timeResol = DriftTubeDet->GetConfParF("DriftTube/timeResol"); // example
 
-   nSides = 1;
-   for (unsigned int j = 0; j < 16; ++j) {
-      signals[j] = -1;
-      times[j] = -1;
-   }
+   // nSides = 1;
+   // for (unsigned int j = 0; j < 16; ++j) {
+   //    signals[j] = -1;
+   //    times[j] = -1;
+   // }
 
    for (auto p = std::begin(V); p != std::end(V); ++p) {
 
