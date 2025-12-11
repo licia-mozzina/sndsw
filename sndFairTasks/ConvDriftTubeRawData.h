@@ -30,7 +30,8 @@ public:
    /** Update input raw-data file and first-to-process event **/
    void UpdateInput(int n);
 
-   // void PrintMatchedEntries();
+   /** Set DriftTubeHit detID as in the SND geometry **/
+   int SetDetID(const int& chamber, const int& layer, const int& wire);
 
 private:
    /** Processing of raw data **/
