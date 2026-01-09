@@ -14,6 +14,7 @@ class TClonesArray;
 class TMemberInspector;
 
 class ConvDriftTubeRawData : public FairTask {
+   struct HitPoint;
 public:
    /** Default constructor **/
    ConvDriftTubeRawData();
@@ -33,14 +34,24 @@ public:
    /** Set DriftTubeHit detID as in the SND geometry **/
    int SetDetID(const int& chamber, const int& layer, const int& wire);
 
+   /** Find neighbouring cells to build clusters **/
+   std::vector<HitPoint> GetNeighbours(int L, int C);
+
+   /** Find hit clusters **/
+   std::vector<std::vector<int>> FindClusters(const TClonesArray * hits);
+
+   /** Perform Hough Transform **/
+   void FindLateralityHough(const TClonesArray * hits);
+
 private:
    /** Processing of raw data **/
    void Process();
 
-   /** Data structures to be used in the class **/
-   std::map<int, DriftTubeHit *> digiDTStore{};
+   // /** Data structures to be used in the class **/
+   // std::map<int, DriftTubeHit *> digiDTStore{};
 
    DriftTube *DriftTubeDet;
+
 
    // Input
    TTree *fSNDTree;

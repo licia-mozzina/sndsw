@@ -6,6 +6,8 @@
 #include "TObject.h"
 #include "TVector3.h"
 
+#define VDRIFT 0.0055 * 1e9
+
 class DriftTubeHit : public TObject {
 public:
    /** Default constructor **/
@@ -42,8 +44,9 @@ public:
    // Int_t GetLayer() { return layer; }
    Int_t GetCell() { return int(fDetectorID % 100); }
    // Int_t GetCell() { return wire; }
-   bool isVertical() { return GetPlane() == 1; } 
-   // Double_t GetDistance(); // FIXME format of output
+   bool isVertical() { return GetPlane() == 1; }      // WRONG, it is zero in SND geometry
+   Double_t GetDistance() {return timestamp * VDRIFT * laterality;} // FIXME format of output
+   void setLaterality(const int& lat) { laterality = lat; }
 
 private:
    Float_t flag; ///< flag
@@ -52,6 +55,8 @@ private:
 
    Double_t timestamp; // questa si droppa dopo matching? dopo ci sarà pedestal (variabile) con SND, tanto vale tenerla
    // Int_t station, layer, wire;
+
+   Int_t    laterality = 0;
 
    ClassDef(DriftTubeHit, 1);
 };
