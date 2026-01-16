@@ -15,6 +15,7 @@ class TMemberInspector;
 
 class ConvDriftTubeRawData : public FairTask {
    struct HitPoint;
+   struct TrackResult;
 public:
    /** Default constructor **/
    ConvDriftTubeRawData();
@@ -41,7 +42,11 @@ public:
    std::vector<std::vector<int>> FindClusters(const TClonesArray * hits);
 
    /** Perform Hough Transform **/
-   void FindLateralityHough(const TClonesArray * hits);
+   void FindLateralityHough(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters);
+
+   /** Find lateralities with slopes method**/
+   void FindLateralitySlope(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters);
+
 
 private:
    /** Processing of raw data **/
