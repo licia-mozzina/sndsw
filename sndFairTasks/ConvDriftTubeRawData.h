@@ -15,7 +15,6 @@ class TMemberInspector;
 
 class ConvDriftTubeRawData : public FairTask {
    struct HitPoint;
-   struct TrackResult;
 public:
    /** Default constructor **/
    ConvDriftTubeRawData();
