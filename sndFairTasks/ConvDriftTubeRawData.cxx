@@ -27,9 +27,6 @@
 
 // FIXME cleanup headers
 
-#define HCELL 1.3
-#define WCELL 4.2
-
 ConvDriftTubeRawData::ConvDriftTubeRawData()
    : FairTask("ConvDriftTubeRawData"), fSNDTree(nullptr), fMiniDTChain(nullptr), fDigiDriftTube(nullptr),
      MiniDTeventNumber(0)
@@ -114,8 +111,17 @@ void ConvDriftTubeRawData::Process()
       } else if ((*hit_timestamp - SNDtimestamp) > 1e-6) {  
          // run laterality computation and hit redefinition 
          std::vector<std::vector<int>> hitsClusters = FindClusters(fDigiDriftTube);  
-         FindLateralityHough(fDigiDriftTube, hitsClusters);
-         // FindLateralitySlope(fDigiDriftTube, hitsClusters);
+         FindLateralitySlope(fDigiDriftTube, hitsClusters);
+         // std::vector<int> latSlope;
+         // for (int i = 0; i != fDigiDriftTube->GetEntries(); ++i) {
+         //    auto hit = static_cast<DriftTubeHit*>(fDigiDriftTube->At(i));
+         //    latSlope.push_back(hit->GetLaterality());
+         // }
+         // FindLateralityHough(fDigiDriftTube, hitsClusters);
+         // for (int i = 0; i != fDigiDriftTube->GetEntries(); ++i) {
+         //    auto hit = static_cast<DriftTubeHit*>(fDigiDriftTube->At(i));
+         //    std::cout << "latSlope:\t" << latSlope[i] << "latHough:\t" << hit->GetLaterality();
+         // }
          MatchedHits = 0;
          break;
       } else {
@@ -326,14 +332,18 @@ std::vector<std::vector<int>> ConvDriftTubeRawData::FindClusters(const TClonesAr
    return allClusters;
 }
 
-struct ConvDriftTubeRawData::TrackResult {
-   double slope;
-   double intercept;
-   double quality;
-   std::vector<int> indices;
-};
 
 void ConvDriftTubeRawData::FindLateralityHough(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters) { 
+
+   struct TrackResult {
+      double slope;
+      double intercept;
+      int max;
+      std::vector<int> indices;
+   };
+
+   const auto HCELL = DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10; // MANCA 1 cm profilo Al
+   const auto WCELL = DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10; 
 
    const double SlopeRange {2.0};
    const int SlopeBins {100};
@@ -354,6 +364,8 @@ void ConvDriftTubeRawData::FindLateralityHough(const TClonesArray * hits, const 
       int nHits {hitsIdx.size()};
       if (nHits < 3) continue;
 
+      TrackResult bestInCluster {0., 0., 0, hitsIdx};
+
       usedBins.clear();
 
       for (int idx : hitsIdx) {
@@ -364,8 +376,13 @@ void ConvDriftTubeRawData::FindLateralityHough(const TClonesArray * hits, const 
 
          for (int lat : {-1, 1}) {
             double x {x_wire + lat * drift_space};
-            if (drift_space > 2.1) continue; // CHECK !!!!!
+            if (hit->GetTimestamp() < 0) {
+               x = x_wire;
+            } else if (hit->GetTimestamp() > WCELL / VDRIFT) {
+               x = x_wire + lat * 0.5 * WCELL;
+            }
 
+            
             for (int slope_bin = 0; slope_bin != SlopeBins; ++slope_bin) {
                double slope {slope_bin * dslope - round(SlopeRange / 2)};
                double intercept {x + slope * y + InterceptOffset};
@@ -373,9 +390,7 @@ void ConvDriftTubeRawData::FindLateralityHough(const TClonesArray * hits, const 
                if (intercept_bin >= 0 && intercept_bin < InterceptBins) {
                   int index {slope_bin * InterceptBins + intercept_bin};
                   if (Accumulator[index] == 0) usedBins.push_back(index);
-                  Accumulator[index++];
-               } else {
-                  std::cout << "out: " << x << " " << x_wire << " " << drift_space << " " << hit->GetTimestamp() - TPED << '\n';
+                  Accumulator[index]++;
                }
             }
          } 
@@ -391,114 +406,30 @@ void ConvDriftTubeRawData::FindLateralityHough(const TClonesArray * hits, const 
          }
       }
 
-      if (max > 2) {
+      // if ((max < 5) && (max > bestInCluster.max)) { // CHECK
+      if (max > 2) { // CHECK
+         bestInCluster.max = max;
          double maxSlope {(bestIdx / InterceptBins) * dslope - round(SlopeRange / 2)};
          double maxIntercept {(bestIdx / InterceptBins) * dintercept - round(SlopeRange / 2)};
-         candidates.push_back({maxSlope, maxIntercept, max, hitsIdx});
-         std::cout << "results:  " << max << " " << maxSlope << " " << maxIntercept << '\n';
-      } else {
-         std::cout << "max: " << max << '\n';
+         bestInCluster.slope = maxSlope;
+         bestInCluster.intercept = maxIntercept;
+         bestInCluster.indices = hitsIdx;
+         // std::cout << "results:  " << max << " " << maxSlope << " " << maxIntercept << '\n';
       }
-
-      for (int idx : usedBins) Accumulator[idx] = 0;
-   }
-
-   // std::sort(candidates.begin(), candidates.end(), [](const TrackResult& a, const TrackResult& b) { return a.quality > b.quality;});
-
-   // std::vector<bool> hitUsed(static_cast<int>(hits->GetEntries()), false);
-
-   // for (auto& cand : candidates) {
-   //    bool conflict {false};
-      
-   //    for (int idx : cand.indices) {
-   //       if (hitUsed[idx]) {
-   //          conflict = true;
-   //          break;
-   //       }
-   //    }
-
-   //    if (!conflict) {
-
-   //       for (int idx : cand.indices) {
-   //          auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
-   //          double y {((hit->GetLayer() - 2) + 0.5) * HCELL};
-   //          double x_wire {(hit->GetCell() + ((hit->GetLayer() % 2 == 1) ? 0.5 : 1.0)) * WCELL};
-   //          double drift_space {hit->GetTimestamp() * VDRIFT};
-
-   //          double x_expected {cand.intercept - cand.slope * y};
-
-   //          double dist_left {std::abs(x_expected - (x_wire - drift_space))};
-   //          double dist_right {std::abs(x_expected - (x_wire + drift_space))};
-
-   //          int laterality {(dist_left < dist_right) ? -1 : 1}; 
-
-   //          hit->setLaterality(laterality);
-   //          hitUsed[idx] = true;
-   //       }
-   //    }
-   // }
-}
-
-
-void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters) {
-
-   std::vector<TrackResult> candidates;
-
-   for (const auto& hitsIdx : clusters) {
-      if (hitsIdx.size() < 3) continue;
-
-      TrackResult bestInCluster {0, 0, 1e9, hitsIdx};
-
-      struct Point {
-         double x_wire;
-         double y;
-         double drift_space;
-      };
-
-      std::vector<Point> points;
-
-      for (int idx : hitsIdx) {
-         auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
-         double y {(hit->GetLayer() - 1.5) * HCELL};
-         double x_wire {(hit->GetCell() + (hit->GetLayer() % 2 == 1) ? 0.5 : 1.0) * WCELL};
-         points.push_back({x_wire, y, (hit->GetTimestamp() - TPED) * VDRIFT}); // negative time hits??
-      }
-
-      for (size_t i = 0; i != points.size(); ++i) {
-         for (size_t j = i + 1; j != points.size(); ++j) {
-            for (int latI : {-1, 1}) {
-               for (int latJ : {-1, 1}) {
-                  double x_i {points[i].x_wire + latI * points[i].drift_space};
-                  double x_j {points[j].x_wire + latI * points[j].drift_space};
-
-                  double m {(x_i - x_j) / (points[i].y - points[j].y)};
-                  double q {x_i - m * points[i].y}; // CHECK
-
-                  double currRes {};
-                  for (const auto& p : points) {
-                     double d_left {std::abs(m * p.y + q - (p.x_wire - p.drift_space))};
-                     double d_right {std::abs(m * p.y + q - (p.x_wire + p.drift_space))};
-                     currRes += std::pow(std::min(d_left, d_right), 2);
-                  }
-
-                  if (currRes < bestInCluster.quality) {
-                     bestInCluster.quality = currRes;
-                     bestInCluster.slope = m;
-                     bestInCluster.intercept = q;
-                  }
-               }
-            }
-         }
-      }
+   
       candidates.push_back(bestInCluster);
+         
+      for (int idx : usedBins) Accumulator[idx] = 0;
+      
    }
 
-   std::sort(candidates.begin(), candidates.end(), [](const TrackResult& a, const TrackResult b) {return a.quality < b.quality;});
+   std::sort(candidates.begin(), candidates.end(), [](const TrackResult& a, const TrackResult& b) { return a.max > b.max;});
 
    std::vector<bool> hitUsed(static_cast<int>(hits->GetEntries()), false);
 
    for (auto& cand : candidates) {
       bool conflict {false};
+      
       for (int idx : cand.indices) {
          if (hitUsed[idx]) {
             conflict = true;
@@ -507,23 +438,150 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
       }
 
       if (!conflict) {
+
          for (int idx : cand.indices) {
             auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
-            
-            double y = {(hit->GetLayer() - 1.5) * HCELL};
-            double x_wire {(hit->GetCell() + (hit->GetLayer() % 2 == 1) ? 0.5 : 1.0) * WCELL};
-            double drift_space {(hit->GetTimestamp() - TPED) * VDRIFT};
+            double y {((hit->GetLayer() - 2) + 0.5) * HCELL};
+            double x_wire {(hit->GetCell() + ((hit->GetLayer() % 2 == 1) ? 0.5 : 1.0)) * WCELL};
+            double drift_space {hit->GetTimestamp() * VDRIFT};
 
-            double dist_left {std::abs(cand.slope * y + cand.intercept - (x_wire - drift_space))};
-            double dist_right {std::abs(cand.slope * y + cand.intercept - (x_wire + drift_space))};
+            double x_expected {cand.intercept - cand.slope * y};
 
-            int laterality {dist_left < dist_right ? -1 : 1};
+            double dist_left {std::abs(x_expected - (x_wire - drift_space))};
+            double dist_right {std::abs(x_expected - (x_wire + drift_space))};
+
+            if (dist_left > WCELL / 2) continue;
+
+            int laterality {(dist_left < dist_right) ? -1 : 1}; 
 
             hit->setLaterality(laterality);
-
             hitUsed[idx] = true;
          }
       }
    }
+}
 
+
+void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters) {
+
+   struct TrackResult {
+      std::vector<int> latCombination {};
+      double quality;
+      std::vector<int> indices;
+   };
+
+   std::vector<TrackResult> candidates;
+
+   const auto HCELL = DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10; // MANCA 1 cm profilo Al
+   const auto WCELL = DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10; 
+
+   for (const auto& hitsIdx : clusters) {
+      int nHits {hitsIdx.size()};
+      if (nHits < 3) continue;
+
+      TrackResult bestInCluster {{}, 1e9, hitsIdx};
+
+      struct Point {
+         double x;
+         double y;
+      };
+
+      std::vector<Point> points;
+
+      int nCombinations = 1 << 4;
+      
+      for (int i = 0; i != nCombinations; ++i) {
+         std::vector<int> currentLats(4, 0); // if no hit in that layer, lat stays 0
+         for (int idx : hitsIdx) {
+            auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
+            int layer {hit->GetLayer()};
+            currentLats[layer] = ((i >> layer) & 1) ? 1 : -1;
+            double y {(layer - 1.5) * HCELL};
+            double x_wire {(hit->GetCell() + (layer % 2 == 1 ? 0.5 : 1.0)) * WCELL};
+            double drift_space {(hit->GetTimestamp() - TPED) * VDRIFT}; // negative time hits??
+            double x {x_wire + currentLats[layer] * drift_space};
+            if (hit->GetTimestamp() < 0) {
+               x = x_wire;
+               currentLats[layer] = 0;
+            } else if (hit->GetTimestamp() > WCELL / VDRIFT) {
+               x = x_wire + currentLats[layer] * 0.5 * WCELL;
+            }
+            points.push_back({x, y});
+         }
+         
+         std::vector<double> slopes {};
+         double slopesMean {};
+         double slopesStdev {};
+
+         // std::cout << i << "\t size: " << points.size() << "\t hits: " << hitsIdx.size() << '\n';
+
+         for (size_t j = 0; j != points.size(); ++j) {
+            for (size_t k = j + 1; k != points.size(); ++k) {
+               double slope {(points[j].y - points[k].y) / (points[j].x - points[k].x)};
+               if (std::isnan(slope) || std::isinf(slope)) continue;
+               // std::cout << i << "\t size: " << slopes.size() << "\t slope:" << slope << '\n';
+               slopes.push_back(slope);
+               slopesMean += slope;
+            }
+         }
+
+         points.clear();
+
+         slopesMean = slopesMean / slopes.size();
+
+         // std::cout << i << "\t size: " << slopes.size() << "\t mean:" << slopesMean << '\n';
+         
+         for (const auto& slope : slopes) {
+            slopesStdev += std::pow(slope - slopesMean, 2);
+         }
+
+         slopesStdev = slopesStdev / slopes.size();
+         
+         // std::cout << i << "\t size: " << slopes.size() << "\t stddev:" << slopesStdev << '\n';
+
+         if (slopesStdev < bestInCluster.quality) {
+            bestInCluster.latCombination = currentLats;
+            bestInCluster.quality = slopesStdev;
+            bestInCluster.indices = hitsIdx;
+         }
+         slopes.clear();
+      }
+      candidates.push_back(bestInCluster);
+   }
+   
+   if (!candidates.empty()) {
+      std::sort(candidates.begin(), candidates.end(), [](const TrackResult& a, const TrackResult& b) {return a.quality < b.quality;});
+      
+      std::vector<bool> hitUsed(static_cast<int>(hits->GetEntries()), false);
+      
+      for (auto& cand : candidates) {
+         bool conflict {false};
+         if (cand.quality > 10) continue;
+         for (int idx : cand.indices) {
+            if (hitUsed[idx]) {
+               conflict = true;
+               break;
+            }
+         }
+   
+         if (!conflict) {
+            for (int idx : cand.indices) {
+               auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
+               int layer {hit->GetLayer()};
+   
+               int lat {cand.latCombination[layer]};
+   
+               hit->setLaterality(lat);
+
+               std::cout << lat << "\t";
+   
+               hitUsed[idx] = true;
+            }
+            std::cout << '\n';
+         }
+      }
+   }
+
+   
+   candidates.clear();
 }
