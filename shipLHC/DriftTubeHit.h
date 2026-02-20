@@ -50,6 +50,9 @@ public:
    void setLaterality(const int& lat) { laterality = lat; }
    int GetLaterality() {return laterality;};
 
+   int GetClusterID() {return clusterID;}
+   void setClusterID(const int& ID) { clusterID = ID;}
+
 private:
    Float_t flag; ///< flag
 
@@ -59,6 +62,8 @@ private:
    // Int_t station, layer, wire;
 
    Int_t    laterality = 0;
+
+   Int_t    clusterID = -1;
 
    ClassDef(DriftTubeHit, 1);
 };
