@@ -486,6 +486,11 @@ void ConvDriftTubeRawData::FindLateralityHough(const TClonesArray * hits, const 
             hit->setLaterality(laterality);
             hitUsed[idx] = true;
          }
+      // }    
+      // std::cout << "BEST:\n";
+      // for (auto& idx : cand.indices) {
+      //    auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
+      //    std::cout << hit->GetPlane() << '\t' << hit->GetLayer() << '\t' << hit->GetCell() << '\t' << hit->GetLaterality() << '\n';
       }
    }
 }
@@ -501,7 +506,7 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
 
    std::vector<TrackResult> candidates;
 
-   const auto HCELL = DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10; // MANCA 1 cm profilo Al
+   const auto HCELL = DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10 + DriftTubeDet->GetConfParF("DriftTube/plateThickness") / 10; // Al plate thickness
    const auto WCELL = DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10; 
    
    int clusterID {-1};
@@ -530,7 +535,7 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
             double y {(layer - 1.5) * HCELL};
             double x_wire {(hit->GetCell() + (layer % 2 == 1 ? 0.5 : 1.0)) * WCELL};
             double drift_space {(hit->GetTimestamp() - TPED) * VDRIFT}; // negative time hits??
-            double x {x_wire + currentLats[layer] * drift_space};
+            double x {x_wire + (currentLats[layer] * drift_space)};
             if (hit->GetTimestamp() < 0) {
                x = x_wire;
                currentLats[layer] = 0;
@@ -547,7 +552,7 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
          // std::cout << i << "\t size: " << points.size() << "\t hits: " << hitsIdx.size() << '\n';
          
          for (size_t j = 0; j != points.size(); ++j) {
-            for (size_t k = j + 1; k != points.size(); ++k) {
+            for (size_t k = j + 1; k < points.size(); ++k) {
                double slope {(points[j].y - points[k].y) / (points[j].x - points[k].x)};
                if (std::isnan(slope) || std::isinf(slope)) continue;
                // std::cout << i << "\t size: " << slopes.size() << "\t slope:" << slope << '\n';
@@ -568,8 +573,6 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
          
          slopesStdev = slopesStdev / slopes.size();
          
-         // std::cout << i << "\t size: " << slopes.size() << "\t stddev:" << slopesStdev << '\n';
-         
          if (slopesStdev < bestInCluster.quality) {
             bestInCluster.latCombination = currentLats;
             bestInCluster.quality = slopesStdev;
@@ -587,9 +590,27 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
       
       for (auto& cand : candidates) {
          bool conflict {false};
-         if (cand.quality > 10) continue;
+         // if (cand.quality > 10) continue;
          ++clusterID;
-         // std::cout << "clusterID: " << clusterID << '\n';
+         std::cout << "clusterID: " << clusterID << '\n';
+
+         // for (int idx : cand.indices) {
+         //    if (hitUsed[idx]) {
+         //       break;
+         //    } else {
+         //       auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
+         //       int layer {hit->GetLayer()};
+   
+         //       int lat {cand.latCombination[layer]};
+   
+         //       hit->setLaterality(lat);
+         //       hit->setClusterID(clusterID);
+
+         //       // std::cout << lat << "\t";
+   
+         //       hitUsed[idx] = true;
+         //    }
+         // }
 
          for (int idx : cand.indices) {
             if (hitUsed[idx]) {
@@ -608,12 +629,16 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
                hit->setLaterality(lat);
                hit->setClusterID(clusterID);
 
-               // std::cout << lat << "\t";
+               std::cout << hit->GetClusterID() << '\t' << hit->GetPlane() << '\t' << hit->GetLayer() << '\t' << hit->GetCell() << '\t' << hit->GetLaterality() << '\n';
    
                hitUsed[idx] = true;
             }
-            // std::cout << '\n';
          }
+
+         // for (int idx : cand.indices) {
+         //    auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
+         //    std::cout << hit->GetClusterID() << '\t' << hit->GetPlane() << '\t' << hit->GetLayer() << '\t' << hit->GetCell() << '\t' << hit->GetLaterality() << '\n';
+         // }
       }
    }
 
