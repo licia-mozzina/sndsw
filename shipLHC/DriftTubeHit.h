@@ -7,7 +7,7 @@
 #include "TVector3.h"
 
 #define VDRIFT 0.0055 * 1e9
-#define TPED 188 * 1e-9
+#define TPED 176 * 1e-9
 
 class DriftTubeHit : public TObject {
 public:

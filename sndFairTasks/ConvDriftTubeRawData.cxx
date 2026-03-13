@@ -101,27 +101,18 @@ void ConvDriftTubeRawData::Process()
    int MatchedHits {};
    while (MiniDTReader.Next()) {
       auto SNDtimestamp = static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6));
-      if (((*hit_timestamp - SNDtimestamp) > -2e-7) && ((*hit_timestamp - SNDtimestamp) < 1e-6)) {
+      if (((*hit_timestamp - SNDtimestamp) > -2e-7) && ((*hit_timestamp - SNDtimestamp) < 8e-7)) {
          if (MatchedHits == 0) {
             MiniDTeventNumber = MiniDTReader.GetCurrentEntry();
          }
          detID = SetDetID(*hit_chamber, *hit_layer, *hit_wire);
          (*fDigiDriftTube)[MatchedHits] = new DriftTubeHit(detID, *hit_timestamp - SNDtimestamp);
          ++MatchedHits;
-      } else if ((*hit_timestamp - SNDtimestamp) > 1e-6) {  
+      } else if ((*hit_timestamp - SNDtimestamp) > 8e-7) {  
          // run laterality computation and hit redefinition 
          std::vector<std::vector<int>> hitsClusters = FindClusters(fDigiDriftTube);  
          FindLateralitySlope(fDigiDriftTube, hitsClusters);
-         // std::vector<int> latSlope;
-         // for (int i = 0; i != fDigiDriftTube->GetEntries(); ++i) {
-         //    auto hit = static_cast<DriftTubeHit*>(fDigiDriftTube->At(i));
-         //    latSlope.push_back(hit->GetLaterality());
-         // }
          // FindLateralityHough(fDigiDriftTube, hitsClusters);
-         // for (int i = 0; i != fDigiDriftTube->GetEntries(); ++i) {
-         //    auto hit = static_cast<DriftTubeHit*>(fDigiDriftTube->At(i));
-         //    std::cout << "latSlope:\t" << latSlope[i] << "latHough:\t" << hit->GetLaterality();
-         // }
          MatchedHits = 0;
          break;
       } else {
@@ -534,12 +525,12 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
             currentLats[layer] = ((i >> layer) & 1) ? 1 : -1;
             double y {(layer - 1.5) * HCELL};
             double x_wire {(hit->GetCell() + (layer % 2 == 1 ? 0.5 : 1.0)) * WCELL};
-            double drift_space {(hit->GetTimestamp() - TPED) * VDRIFT}; // negative time hits??
+            double drift_space {(hit->GetTimestamp() - TPED) * VDRIFT}; 
             double x {x_wire + (currentLats[layer] * drift_space)};
             if (hit->GetTimestamp() < 0) {
                x = x_wire;
                currentLats[layer] = 0;
-            } else if (hit->GetTimestamp() > WCELL / VDRIFT) {
+            } else if (hit->GetTimestamp() > WCELL * 0.5 / VDRIFT) {
                x = x_wire + currentLats[layer] * 0.5 * WCELL;
             }
             points.push_back({x, y});
@@ -571,7 +562,7 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
             slopesStdev += std::pow(slope - slopesMean, 2);
          }
          
-         slopesStdev = slopesStdev / slopes.size();
+         slopesStdev = std::sqrt(slopesStdev / slopes.size());
          
          if (slopesStdev < bestInCluster.quality) {
             bestInCluster.latCombination = currentLats;
