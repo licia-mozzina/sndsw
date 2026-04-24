@@ -107,6 +107,10 @@ void ConvDriftTubeRawData::Process()
          }
          detID = SetDetID(*hit_chamber, *hit_layer, *hit_wire);
          (*fDigiDriftTube)[MatchedHits] = new DriftTubeHit(detID, *hit_timestamp - SNDtimestamp);
+         auto hit = dynamic_cast<DriftTubeHit*>(fDigiDriftTube->At(MatchedHits));
+         assert(hit->GetPlane() == 1 - *hit_chamber); // REMOVE
+         assert(hit->GetLayer() == 3 - *hit_layer); // REMOVE
+         assert(hit->GetCell() == 15 - *hit_wire); // REMOVE
          ++MatchedHits;
       } else if ((*hit_timestamp - SNDtimestamp) > 8e-7) {  
          // run laterality computation and hit redefinition 
@@ -398,7 +402,7 @@ void ConvDriftTubeRawData::FindLateralityHough(const TClonesArray * hits, const 
             double x {x_wire + lat * drift_space};
             if (hit->GetTimestamp() < 0) {
                x = x_wire;
-            } else if (hit->GetTimestamp() > WCELL / VDRIFT) {
+            } else if (hit->GetTimestamp() > WCELL * 0.5 / VDRIFT) {
                x = x_wire + lat * 0.5 * WCELL;
             }
 
@@ -497,8 +501,8 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
 
    std::vector<TrackResult> candidates;
 
-   const auto HCELL = DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10 + DriftTubeDet->GetConfParF("DriftTube/plateThickness") / 10; // Al plate thickness
-   const auto WCELL = DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10; 
+   const auto HCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10 + DriftTubeDet->GetConfParF("DriftTube/plateThickness") / 10); // Al plate thickness
+   const auto WCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10); 
    
    int clusterID {-1};
    
@@ -515,45 +519,72 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
       
       std::vector<Point> points;
       
-      int nCombinations = 1 << 4;
-      
-      for (int i = 0; i != nCombinations; ++i) {
+      std::vector<std::vector<int>> allowedLatSets = {
+         {-1, -1, -1, -1}, // 0
+         { 1, -1, -1, -1}, // 1
+         {-1,  1, -1, -1}, // 2
+         { 1,  1, -1, -1}, // 3
+         {-1, -1,  1, -1}, // 4
+         { 1, -1,  1, -1}, // 5
+         {-1,  1,  1, -1}, // 6
+         { 1,  1,  1, -1}, // 7
+         {-1, -1, -1,  1}, // 8
+         { 1, -1, -1,  1}, // 9
+         {-1,  1, -1,  1}, // 10
+         { 1,  1, -1,  1}, // 11
+         {-1, -1,  1,  1}, // 12
+         { 1, -1,  1,  1}, // 13
+         {-1,  1,  1,  1}, // 14
+         { 1,  1,  1,  1}  // 15
+      };
+
+      int set {};
+            
+      for (const auto& testLats : allowedLatSets) {
          std::vector<int> currentLats(4, 0); // if no hit in that layer, lat stays 0
-         for (int idx : hitsIdx) {
-            auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
+         for (int j = 0; j < nHits; ++j) {
+            auto hit = dynamic_cast<DriftTubeHit*>(hits->At(hitsIdx[j]));
             int layer {hit->GetLayer()};
-            currentLats[layer] = ((i >> layer) & 1) ? 1 : -1;
-            double y {(layer - 1.5) * HCELL};
+            
+            // MAP BIT j TO HIT j
+            // int lat = ((i >> j) & 1) ? 1 : -1;
+            int lat = testLats[layer];
+            currentLats[layer] = lat; 
+
+            double y {(layer + 0.5) * HCELL};
             double x_wire {(hit->GetCell() + (layer % 2 == 1 ? 0.5 : 1.0)) * WCELL};
-            double drift_space {(hit->GetTimestamp() - TPED) * VDRIFT}; 
-            double x {x_wire + (currentLats[layer] * drift_space)};
-            if (hit->GetTimestamp() < 0) {
-               x = x_wire;
-               currentLats[layer] = 0;
-            } else if (hit->GetTimestamp() > WCELL * 0.5 / VDRIFT) {
-               x = x_wire + currentLats[layer] * 0.5 * WCELL;
+            double drift_time = static_cast<double>(hit->GetTimestamp()- TPED);
+            
+            double x {};
+            if (drift_time < 0) {
+                x = x_wire;
+                currentLats[layer] = 0;
+            } else {
+                // Limit drift space to half-width, but keep lat sign
+                double dist = std::min(static_cast<double>(drift_time * VDRIFT), WCELL * 0.5);
+                x = x_wire + (lat * dist);
             }
             points.push_back({x, y});
-         }
+        }
          
          std::vector<double> slopes {};
          double slopesMean {};
          double slopesStdev {};
          
-         // std::cout << i << "\t size: " << points.size() << "\t hits: " << hitsIdx.size() << '\n';
-         
-         for (size_t j = 0; j != points.size(); ++j) {
-            for (size_t k = j + 1; k < points.size(); ++k) {
-               double slope {(points[j].y - points[k].y) / (points[j].x - points[k].x)};
-               if (std::isnan(slope) || std::isinf(slope)) continue;
-               // std::cout << i << "\t size: " << slopes.size() << "\t slope:" << slope << '\n';
-               slopes.push_back(slope);
-               slopesMean += slope;
+         for (auto const& j : points) {
+            for (auto const& k : points) {
+               if ((k.x == j.x) && (k.y == j.y)) continue;
+               double slope {(j.x - k.x) / (j.y - k.y)};
+               // std::cout << "y_1:\t" << j.y << "\ty_2:\t" << k.y << "\tx_1:\t" << j.x << "\tx_2:\t" << k.x << "\tslope:\t" << slope << '\n';
+               if (!std::isnan(slope) && !std::isinf(slope)) {
+                  slopes.push_back(slope);
+                  slopesMean += slope;
+               }
             }
          }
          
          points.clear();
-         
+
          slopesMean = slopesMean / slopes.size();
          
          // std::cout << i << "\t size: " << slopes.size() << "\t mean:" << slopesMean << '\n';
@@ -561,7 +592,15 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
          for (const auto& slope : slopes) {
             slopesStdev += std::pow(slope - slopesMean, 2);
          }
+
          
+         // std::cout << set << '\t' << slopesStdev << '\t';
+         // for (const auto& slope : slopes) {
+         // std::cout << slope << '\t';
+         // } 
+         // std::cout << '\n';
+         
+
          slopesStdev = std::sqrt(slopesStdev / slopes.size());
          
          if (slopesStdev < bestInCluster.quality) {
@@ -570,6 +609,7 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
             bestInCluster.indices = hitsIdx;
          }
          slopes.clear();
+         ++set;
       }
       candidates.push_back(bestInCluster);
    }
@@ -620,7 +660,7 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
                hit->setLaterality(lat);
                hit->setClusterID(clusterID);
 
-               std::cout << hit->GetClusterID() << '\t' << hit->GetPlane() << '\t' << hit->GetLayer() << '\t' << hit->GetCell() << '\t' << hit->GetLaterality() << '\n';
+               // std::cout << hit->GetClusterID() << '\t' << hit->GetPlane() << '\t' << hit->GetLayer() << '\t' << hit->GetCell() << '\t' << hit->GetLaterality() << '\n';
    
                hitUsed[idx] = true;
             }
