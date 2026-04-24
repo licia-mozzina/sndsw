@@ -124,7 +124,7 @@ void ConvDriftTubeRawData::Process()
       }
    }
 
-   LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
+   // LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
    UpdateInput(eventNumber);
 }
 
@@ -497,13 +497,23 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
       std::vector<int> latCombination {};
       double quality;
       std::vector<int> indices;
+      std::vector<double> x1;
+      std::vector<double> x2;
+      std::vector<double> y1;
+      std::vector<double> y2;
+      std::vector<double> slopes;
+      int clusterID {};
+      int set;
    };
 
    std::vector<TrackResult> candidates;
 
-   const auto HCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10 + DriftTubeDet->GetConfParF("DriftTube/plateThickness") / 10); // Al plate thickness
-   const auto WCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10); 
+   // const auto HCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10 + DriftTubeDet->GetConfParF("DriftTube/plateThickness") / 10); // Al plate thickness
+   // const auto WCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10); 
    
+   const double HCELL = 1.3;
+   const double WCELL = 4.2;
+
    int clusterID {-1};
    
    for (const auto& hitsIdx : clusters) {
@@ -570,16 +580,31 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
          std::vector<double> slopes {};
          double slopesMean {};
          double slopesStdev {};
+
+         std::vector<double> x1 {};
+         std::vector<double> x2 {};
+         std::vector<double> y1 {};
+         std::vector<double> y2 {};
          
-         for (auto const& j : points) {
-            for (auto const& k : points) {
-               if ((k.x == j.x) && (k.y == j.y)) continue;
-               double slope {(j.x - k.x) / (j.y - k.y)};
-               // std::cout << "y_1:\t" << j.y << "\ty_2:\t" << k.y << "\tx_1:\t" << j.x << "\tx_2:\t" << k.x << "\tslope:\t" << slope << '\n';
-               if (!std::isnan(slope) && !std::isinf(slope)) {
-                  slopes.push_back(slope);
-                  slopesMean += slope;
+         for (size_t j = 0; j != points.size(); ++j) {
+            for (size_t k = j + 1; k != points.size(); ++k) {
+               double dx {points[j].x - points[k].x};
+               double dy {points[j].y - points[k].y};
+               if (std::abs(dy) > std::numeric_limits<double>::epsilon()) {
+                  slopes.push_back(dx / dy);
+                  slopesMean += (dx / dy);
+                  
+                  x1.push_back(points[j].x);
+                  x2.push_back(points[k].x);
+                  y1.push_back(points[j].y);
+                  y2.push_back(points[k].y);
                }
+               // double slope {(points[j].x - points[k].x) / (points[j].y - points[k].y)};
+               // // std::cout << "y_1:\t" << j.y << "\ty_2:\t" << k.y << "\tx_1:\t" << j.x << "\tx_2:\t" << k.x << "\tslope:\t" << slope << '\n';
+               // if (!std::isnan(slope) && !std::isinf(slope)) {
+               //    slopes.push_back(slope);
+               //    slopesMean += slope;
+               // }
             }
          }
          
@@ -600,16 +625,26 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
          // } 
          // std::cout << '\n';
          
-
-         slopesStdev = std::sqrt(slopesStdev / slopes.size());
+         slopesStdev = std::sqrt(slopesStdev / (slopes.size() - 1));
          
          if (slopesStdev < bestInCluster.quality) {
             bestInCluster.latCombination = currentLats;
             bestInCluster.quality = slopesStdev;
             bestInCluster.indices = hitsIdx;
+            bestInCluster.x1 = x1;
+            bestInCluster.x2 = x2;
+            bestInCluster.y1 = y1;
+            bestInCluster.y2 = y2;
+            bestInCluster.slopes = slopes;
+            bestInCluster.set = set;
          }
          slopes.clear();
          ++set;
+
+         x1.clear();
+         x2.clear();
+         y1.clear();
+         y2.clear();
       }
       candidates.push_back(bestInCluster);
    }
@@ -623,7 +658,7 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
          bool conflict {false};
          // if (cand.quality > 10) continue;
          ++clusterID;
-         std::cout << "clusterID: " << clusterID << '\n';
+         // std::cout << "clusterID: " << clusterID << '\n';
 
          // for (int idx : cand.indices) {
          //    if (hitUsed[idx]) {
@@ -663,6 +698,11 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
                // std::cout << hit->GetClusterID() << '\t' << hit->GetPlane() << '\t' << hit->GetLayer() << '\t' << hit->GetCell() << '\t' << hit->GetLaterality() << '\n';
    
                hitUsed[idx] = true;
+
+               cand.clusterID = clusterID;
+            }
+            for (size_t p = 0; p != cand.x1.size(); ++p) {
+               std::cout << eventNumber << '\t' << cand.clusterID << '\t' << cand.set << '\t' << cand.x1[p] << '\t' << cand.x2[p] << '\t' << cand.y1[p] << '\t' << cand.y2[p] << '\t' << cand.slopes[p] << '\t' << cand.quality << '\n';
             }
          }
 
