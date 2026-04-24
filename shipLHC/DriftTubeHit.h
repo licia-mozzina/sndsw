@@ -6,8 +6,8 @@
 #include "TObject.h"
 #include "TVector3.h"
 
-#define VDRIFT 0.0055 * 1e9
-#define TPED 176 * 1e-9
+inline const double VDRIFT {0.0055 * 1e9};
+inline const double TPED {176.0 * 1e-9}; // change to 190
 
 class DriftTubeHit : public TObject {
 public:
