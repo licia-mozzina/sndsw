@@ -491,11 +491,8 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
 
    std::vector<TrackResult> candidates;
 
-   // const auto HCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10 + DriftTubeDet->GetConfParF("DriftTube/plateThickness") / 10); // Al plate thickness
-   // const auto WCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10); 
-   
-   const double HCELL = 1.3;
-   const double WCELL = 4.2;
+   const auto HCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellHeight") + DriftTubeDet->GetConfParF("DriftTube/plateThickness")); // Al plate thickness
+   const auto WCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellWidth")); 
 
    int clusterID {-1};
    
