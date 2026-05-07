@@ -77,4 +77,33 @@ void DriftTubeHit::Print()
 }
 // -------------------------------------------------------------------------
 
+TVector3 DriftTubeHit::GetPosition() { // cambiare nome? fare altra funzione?
+   TVector3 position {};
+   std::string node = Form("/Detector_0/volDriftTubePlane_%d/volLayer_%d/volCell_%d/volAnode_2", GetPlane(), GetLayer(), GetDetectorID());
+   auto navigator = gGeoManager->GetCurrentNavigator();
+
+   if (gGeoManager->cd(node.c_str())) {
+      TGeoShape *shape = gGeoManager->GetCurrentNode()->GetVolume()->GetShape();
+      // Check if the shape is a TGeoBBox (Box) and get dimensions
+      if (shape->InheritsFrom("TGeoBBox")) {
+         TGeoBBox *box = dynamic_cast<TGeoBBox *>(shape);
+         const Double_t *origin = box->GetOrigin();  // gGeoManager->GetCurrentNode()->GetMatrix()->GetTranslation();
+
+         navigator->cd(node.c_str());
+         Double_t localPosition[3] {origin[0] + static_cast<double>((timestamp - TPED) * VDRIFT * laterality), origin[1], origin[2]};
+         Double_t globalPosition[3] {};
+         navigator->LocalToMaster(localPosition, globalPosition);
+
+         position.SetXYZ(globalPosition[0], globalPosition[1], globalPosition[2]);
+
+         // std::cout << node << '\n';
+         // std::cout << "--- Geometry Debug for: " << node << " ---" << "\n";
+         // std::cout << "local: " << localPosition[0] << "\t" << localPosition[1] << "\t" << localPosition[2] << "\n";
+         // std::cout << "global: " << globalPosition[0] << "\t" << globalPosition[1] << "\t" << globalPosition[2] << "\n";
+      }
+   }
+
+   return position;
+}
+
 ClassImp(DriftTubeHit)

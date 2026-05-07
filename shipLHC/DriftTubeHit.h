@@ -7,7 +7,7 @@
 #include "TVector3.h"
 
 inline const double VDRIFT {0.0055 * 1e9};
-inline const double TPED {176.0 * 1e-9}; // change to 190
+inline const double TPED {190.0 * 1e-9}; // change to 190
 
 class DriftTubeHit : public TObject {
 public:
@@ -46,12 +46,14 @@ public:
    Int_t GetCell() { return int(fDetectorID % 100); }
    // Int_t GetCell() { return wire; }
    bool isVertical() { return GetPlane() == 1; }      // WRONG, it is zero in SND geometry
-   Double_t GetDistance() {return (timestamp - TPED) * VDRIFT * laterality;} // FIXME format of output
+   TVector3 GetPosition(); // FIXME out of boundary hits, format of output 
    void setLaterality(const int& lat) { laterality = lat; }
    int GetLaterality() {return laterality;};
 
    int GetClusterID() {return clusterID;}
    void setClusterID(const int& ID) { clusterID = ID;}
+
+   int GetDetectorID() {return fDetectorID;}
 
 private:
    Float_t flag; ///< flag
