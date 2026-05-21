@@ -101,7 +101,7 @@ void ConvDriftTubeRawData::Process()
    int MatchedHits {};
    while (MiniDTReader.Next()) {
       auto SNDtimestamp = static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6));
-      if (((*hit_timestamp - SNDtimestamp) > -2e-7) && ((*hit_timestamp - SNDtimestamp) < 8e-7)) {
+      if (((*hit_timestamp - SNDtimestamp) > -50e-9) && ((*hit_timestamp - SNDtimestamp) < 650e-9)) {
          if (MatchedHits == 0) {
             MiniDTeventNumber = MiniDTReader.GetCurrentEntry();
          }
@@ -112,7 +112,7 @@ void ConvDriftTubeRawData::Process()
          assert(hit->GetLayer() == 3 - *hit_layer); // REMOVE
          assert(hit->GetCell() == 15 - *hit_wire); // REMOVE
          ++MatchedHits;
-      } else if ((*hit_timestamp - SNDtimestamp) > 8e-7) {  
+      } else if ((*hit_timestamp - SNDtimestamp) > 650e-9) {  
          // run laterality computation and hit redefinition 
          std::vector<std::vector<int>> hitsClusters = FindClusters(fDigiDriftTube);  
          FindLateralitySlope(fDigiDriftTube, hitsClusters);
