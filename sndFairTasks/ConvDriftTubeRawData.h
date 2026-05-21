@@ -35,13 +35,10 @@ public:
    int SetDetID(const int& chamber, const int& layer, const int& wire);
 
    /** Find neighbouring cells to build clusters **/
-   std::vector<HitPoint> GetNeighbours(int L, int C);
+   std::vector<HitPoint> GetNeighbours(const int& L, const int& C);
 
    /** Find hit clusters **/
    std::vector<std::vector<int>> FindClusters(const TClonesArray * hits);
-
-   /** Perform Hough Transform **/
-   void FindLateralityHough(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters);
 
    /** Find lateralities with slopes method**/
    void FindLateralitySlope(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters);
@@ -50,9 +47,6 @@ public:
 private:
    /** Processing of raw data **/
    void Process();
-
-   // /** Data structures to be used in the class **/
-   // std::map<int, DriftTubeHit *> digiDTStore{};
 
    DriftTube *DriftTubeDet;
 

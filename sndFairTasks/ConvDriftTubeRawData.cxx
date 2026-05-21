@@ -1,7 +1,6 @@
-#include <TClonesArray.h>      // or TClonesArray
+#include <TClonesArray.h>      // for TClonesArray
 #include <TGenericClassInfo.h> // for TGenericClassInfo
 #include <TMath.h>             // for Sqrt
-#include <TRandom.h>           // for TRandom, gRandom
 #include <TFile.h>
 #include <TTree.h>
 #include <TBranch.h>
@@ -16,8 +15,6 @@
 #include <vector>    // std::vector
 #include <array>     // std::array
 #include <cmath>
-#include <numeric>   // std::iota
-#include <stdio.h>   // sprintf
 #include "FairMCEventHeader.h"    // for FairMCEventHeader
 #include "FairLink.h"             // for FairLink
 #include "FairRunAna.h"           // for FairRunAna
@@ -51,12 +48,12 @@ InitStatus ConvDriftTubeRawData::Init()
    // converted SND
    TFile *f0 = dynamic_cast<TFile *>(ioman->GetObject("rawConv"));
    fSNDTree = (TTree *)f0->Get("rawConv");
-   // fSNDTree->GetBranch("EventHeader.fEventTime");
 
+   // load MiniDT data for the current run
    fMiniDTChain = (TChain *)ioman->GetObject("MiniDTChain");
 
    // Register the output
-   fDigiDriftTube = new TClonesArray("DriftTubeHit"); // FIXME dictionary?
+   fDigiDriftTube = new TClonesArray("DriftTubeHit");
    ioman->Register("Digi_DriftTubeHits", "DigiDriftTubeHit_det", fDigiDriftTube, kTRUE);
 
    // Get the FairLogger
@@ -70,13 +67,7 @@ InitStatus ConvDriftTubeRawData::Init()
 void ConvDriftTubeRawData::Exec(Option_t * /*opt*/)
 {
 
-   fDigiDriftTube->Clear("C"); //
-
-   // // Delete pointer map elements
-   // for (auto it : digiDTStore) {
-   //    delete it.second;
-   // }
-   // digiDTStore.clear();
+   fDigiDriftTube->Clear("C"); 
 
    // run the conversion
    Process();
@@ -108,15 +99,11 @@ void ConvDriftTubeRawData::Process()
          detID = SetDetID(*hit_chamber, *hit_layer, *hit_wire);
          (*fDigiDriftTube)[MatchedHits] = new DriftTubeHit(detID, *hit_timestamp - SNDtimestamp);
          auto hit = dynamic_cast<DriftTubeHit*>(fDigiDriftTube->At(MatchedHits));
-         assert(hit->GetPlane() == 1 - *hit_chamber); // REMOVE
-         assert(hit->GetLayer() == 3 - *hit_layer); // REMOVE
-         assert(hit->GetCell() == 15 - *hit_wire); // REMOVE
          ++MatchedHits;
       } else if ((*hit_timestamp - SNDtimestamp) > 650e-9) {  
          // run laterality computation and hit redefinition 
          std::vector<std::vector<int>> hitsClusters = FindClusters(fDigiDriftTube);  
          FindLateralitySlope(fDigiDriftTube, hitsClusters);
-         // FindLateralityHough(fDigiDriftTube, hitsClusters);
          MatchedHits = 0;
          break;
       } else {
@@ -128,56 +115,8 @@ void ConvDriftTubeRawData::Process()
    UpdateInput(eventNumber);
 }
 
-// void ConvDriftTubeRawData::Process()
-// {
-//    int indexDriftTube{}; // index of DT hits
-//    int detID;            // assegna valore!!
-//    fSNDTree->GetEvent(eventNumber);
-//    auto eventTimestamp = fSNDTree->GetLeaf("EventHeader.fEventTime")->GetValue();
-
-//    TTreeReader MiniDTReader(fMiniDTChain);
-
-//    TTreeReaderValue<double> hit_timestamp(MiniDTReader, "hit_timestamp");
-//    TTreeReaderValue<int> hit_chamber(MiniDTReader, "hit_chamber");
-//    TTreeReaderValue<int> hit_layer(MiniDTReader, "hit_layer");
-//    TTreeReaderValue<int> hit_wire(MiniDTReader, "hit_wire");
-
-//    MiniDTReader.SetEntry(MiniDTeventNumber);
-//    int MatchedHits = 0;
-//    while (MiniDTReader.Next()) {
-//       auto SNDtimestamp = static_cast<double>(eventTimestamp / (4 * 40.0789 * 1e6));
-//       if (((*hit_timestamp - SNDtimestamp) > -2e-7) && ((*hit_timestamp - SNDtimestamp) < 1e-6)) {
-//          if (MatchedHits == 0) {
-//             MiniDTeventNumber = MiniDTReader.GetCurrentEntry();
-//          }
-//          if (digiDTStore.count(MatchedHits) == 0) {
-//             digiDTStore[MatchedHits] = new DriftTubeHit(MatchedHits, *hit_timestamp - SNDtimestamp, *hit_chamber, *hit_layer, *hit_wire);
-//          }
-//          ++MatchedHits;
-//          std::cout << MatchedHits << '\n';
-//       } else if ((*hit_timestamp - SNDtimestamp) > 1e-6) {
-//          for (auto it_detID : digiDTStore) {
-//             (*fDigiDriftTube)[indexDriftTube] = digiDTStore[it_detID.first];
-//             indexDriftTube += 1;
-//          }
-//          if (digiDTStore.size() != 0) {
-//             std::cout << digiDTStore.size() << " matched hits!\n";
-//          }
-//          MatchedHits = 0;
-//          break;
-//       } else {
-//          continue;
-//       }
-//    }
-
-//    LOG(INFO) << eventNumber << " events processed out of " << fSNDTree->GetEntries() << " number of events in file.";
-//    UpdateInput(eventNumber);
-// }
-
-
 void ConvDriftTubeRawData::UpdateInput(int NewStart)
 {
-//   fSNDTree->Refresh();
    eventNumber = NewStart;
 }
 
@@ -192,7 +131,7 @@ struct ConvDriftTubeRawData::HitPoint {
    int C;
 };
 
-std::vector<ConvDriftTubeRawData::HitPoint> ConvDriftTubeRawData::GetNeighbours(int L, int C) {
+std::vector<ConvDriftTubeRawData::HitPoint> ConvDriftTubeRawData::GetNeighbours(const int& L, const int& C) {
    std::vector<HitPoint> neighbours;
    neighbours.reserve(10);
 
@@ -266,8 +205,8 @@ std::vector<std::vector<int>> ConvDriftTubeRawData::FindClusters(const TClonesAr
                auto neighbours = GetNeighbours(hit->GetLayer(), hit->GetCell());
 
                for (const auto& nb : neighbours) {
-                  if (nb.C >= 0 && nb.C < 16) { // bound C, not bounded in GetNeighbours
-                     int nbIdx {gridIdx(p, nb.L, nb.C)}; // are we sure we are not mixing hits from diff chambers? yes, the C is bounded and p appears in the function
+                  if (nb.C >= 0 && nb.C < 16) { 
+                     int nbIdx {gridIdx(p, nb.L, nb.C)}; 
 
                      if (nbIdx != -1 && !visited[nbIdx]) {
                         visited[nbIdx] = true;
@@ -346,141 +285,6 @@ std::vector<std::vector<int>> ConvDriftTubeRawData::FindClusters(const TClonesAr
    return allClusters;
 }
 
-
-void ConvDriftTubeRawData::FindLateralityHough(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters) { 
-
-   struct TrackResult {
-      double slope;
-      double intercept;
-      int max;
-      std::vector<int> indices;
-   };
-
-   const auto HCELL = DriftTubeDet->GetConfParF("DriftTube/cellHeight") / 10; // MANCA 1 cm profilo Al
-   const auto WCELL = DriftTubeDet->GetConfParF("DriftTube/cellWidth") / 10; 
-
-   const double SlopeRange {2.0};
-   const int SlopeBins {100};
-   const double dslope {SlopeRange / SlopeBins};
-
-   const double dintercept {0.1};
-   const double InterceptOffset = (1.5 * HCELL) * round(SlopeRange / 2);
-   const double InterceptBound {(2 * InterceptOffset) + 16.5 * WCELL}; 
-   const int InterceptBins {static_cast<int>(InterceptBound / dintercept)};
-
-   static std::vector<int> Accumulator(SlopeBins * InterceptBins, 0);
-
-   std::vector<int> usedBins;
-   usedBins.reserve(500);
-   std::vector<TrackResult> candidates;
-   
-   for (auto& hitsIdx : clusters) {
-      int nHits {hitsIdx.size()};
-      if (nHits < 3) continue;
-
-      TrackResult bestInCluster {0., 0., 0, hitsIdx};
-
-      usedBins.clear();
-
-      for (int idx : hitsIdx) {
-         auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx)); 
-         double y {((hit->GetLayer() - 2) + 0.5) * HCELL};
-         double x_wire {(hit->GetCell() + ((hit->GetLayer() % 2 == 1) ? 0.5 : 1.0)) * WCELL};
-         double drift_space {(hit->GetTimestamp() - TPED) * VDRIFT};
-
-         for (int lat : {-1, 1}) {
-            double x {x_wire + lat * drift_space};
-            if (hit->GetTimestamp() < 0) {
-               x = x_wire;
-            } else if (hit->GetTimestamp() > WCELL * 0.5 / VDRIFT) {
-               x = x_wire + lat * 0.5 * WCELL;
-            }
-
-            
-            for (int slope_bin = 0; slope_bin != SlopeBins; ++slope_bin) {
-               double slope {slope_bin * dslope - round(SlopeRange / 2)};
-               double intercept {x + slope * y + InterceptOffset};
-               int intercept_bin = round(intercept);
-               if (intercept_bin >= 0 && intercept_bin < InterceptBins) {
-                  int index {slope_bin * InterceptBins + intercept_bin};
-                  if (Accumulator[index] == 0) usedBins.push_back(index);
-                  Accumulator[index]++;
-               }
-            }
-         } 
-      }
-
-      int max {};
-      int bestIdx {-1};
-
-      for (int idx : usedBins) {
-         if (Accumulator[idx] > max) {
-            max = Accumulator[idx];
-            bestIdx = idx;
-         }
-      }
-
-      // if ((max < 5) && (max > bestInCluster.max)) { // CHECK
-      if (max > 2) { // CHECK
-         bestInCluster.max = max;
-         double maxSlope {(bestIdx / InterceptBins) * dslope - round(SlopeRange / 2)};
-         double maxIntercept {(bestIdx / InterceptBins) * dintercept - round(SlopeRange / 2)};
-         bestInCluster.slope = maxSlope;
-         bestInCluster.intercept = maxIntercept;
-         bestInCluster.indices = hitsIdx;
-         // std::cout << "results:  " << max << " " << maxSlope << " " << maxIntercept << '\n';
-      }
-   
-      candidates.push_back(bestInCluster);
-         
-      for (int idx : usedBins) Accumulator[idx] = 0;
-      
-   }
-
-   std::sort(candidates.begin(), candidates.end(), [](const TrackResult& a, const TrackResult& b) { return a.max > b.max;});
-
-   std::vector<bool> hitUsed(static_cast<int>(hits->GetEntries()), false);
-
-   for (auto& cand : candidates) {
-      bool conflict {false};
-      
-      for (int idx : cand.indices) {
-         if (hitUsed[idx]) {
-            conflict = true;
-            break;
-         }
-      }
-
-      if (!conflict) {
-
-         for (int idx : cand.indices) {
-            auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
-            double y {((hit->GetLayer() - 2) + 0.5) * HCELL};
-            double x_wire {(hit->GetCell() + ((hit->GetLayer() % 2 == 1) ? 0.5 : 1.0)) * WCELL};
-            double drift_space {hit->GetTimestamp() * VDRIFT};
-
-            double x_expected {cand.intercept - cand.slope * y};
-
-            double dist_left {std::abs(x_expected - (x_wire - drift_space))};
-            double dist_right {std::abs(x_expected - (x_wire + drift_space))};
-
-            if (dist_left > WCELL / 2) continue;
-
-            int laterality {(dist_left < dist_right) ? -1 : 1}; 
-
-            hit->setLaterality(laterality);
-            hitUsed[idx] = true;
-         }
-      // }    
-      // std::cout << "BEST:\n";
-      // for (auto& idx : cand.indices) {
-      //    auto hit = dynamic_cast<DriftTubeHit*>(hits->At(idx));
-      //    std::cout << hit->GetPlane() << '\t' << hit->GetLayer() << '\t' << hit->GetCell() << '\t' << hit->GetLaterality() << '\n';
-      }
-   }
-}
-
-
 void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const std::vector<std::vector<int>>& clusters) {
 
    struct TrackResult {
@@ -517,7 +321,6 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
             auto hit = dynamic_cast<DriftTubeHit*>(hits->At(hitsIdx[j]));
             int layer {hit->GetLayer()};
             
-            // MAP BIT j TO HIT j
             int lat = ((i >> j) & 1) ? 1 : -1;
             currentLats[layer] = lat; 
 
@@ -601,8 +404,6 @@ void ConvDriftTubeRawData::FindLateralitySlope(const TClonesArray * hits, const 
             }
          }
       }
-   }
-
-   
+   }   
    candidates.clear();
 }
