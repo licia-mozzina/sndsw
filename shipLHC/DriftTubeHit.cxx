@@ -82,6 +82,9 @@ TVector3 DriftTubeHit::GetPosition() { // cambiare nome? fare altra funzione?
    std::string node = Form("/Detector_0/volDriftTubePlane_%d/volLayer_%d/volCell_%d/volAnode_2", GetPlane(), GetLayer(), GetDetectorID());
    auto navigator = gGeoManager->GetCurrentNavigator();
 
+   DriftTube *DriftTubeDet = dynamic_cast<DriftTube *>(gROOT->GetListOfGlobals()->FindObject("DriftTube"));
+   const auto WCELL = static_cast<double>(DriftTubeDet->GetConfParF("DriftTube/cellWidth")); 
+
    if (gGeoManager->cd(node.c_str())) {
       TGeoShape *shape = gGeoManager->GetCurrentNode()->GetVolume()->GetShape();
       // Check if the shape is a TGeoBBox (Box) and get dimensions
@@ -90,7 +93,8 @@ TVector3 DriftTubeHit::GetPosition() { // cambiare nome? fare altra funzione?
          const Double_t *origin = box->GetOrigin();  // gGeoManager->GetCurrentNode()->GetMatrix()->GetTranslation();
 
          navigator->cd(node.c_str());
-         Double_t localPosition[3] {origin[0] + static_cast<double>((timestamp - TPED) * VDRIFT * laterality), origin[1], origin[2]};
+         // Double_t localPosition[3] {origin[0] + static_cast<double>((timestamp - TPED) * VDRIFT * laterality), origin[1], origin[2]}; // change for out of bound hits
+         Double_t localPosition[3] {origin[0] + std::min(static_cast<double>((timestamp - TPED) * VDRIFT), WCELL * 0.5) * laterality, origin[1], origin[2]};
          Double_t globalPosition[3] {};
          navigator->LocalToMaster(localPosition, globalPosition);
 
